@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Hands-on: Từ tay đến ArgoCD</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-2: #f78166;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+    --sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    padding-bottom: 80px;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    padding: 70px 24px 50px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -50%; left: 50%;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+    background: rgba(63,185,80,0.1);
+    border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 24px;
+    letter-spacing: 0.05em;
+  }
+
+  .hero h1 {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #e6edf3 0%, #8b949e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero p {
+    color: var(--text-dim);
+    font-size: 17px;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .hero p code {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  /* ---------- PROGRESS RAIL ---------- */
+  .rail {
+    max-width: 1000px;
+    margin: 40px auto 0;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rail-item {
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-decoration: none;
+    padding: 8px 4px;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .rail-item:hover {
+    color: var(--accent);
+    background: rgba(88,166,255,0.08);
+  }
+
+  .rail-item .n {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  /* ---------- MAIN ---------- */
+  main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .step {
+    margin-top: 90px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+    overflow: hidden;
+    scroll-margin-top: 30px;
+  }
+
+  .step-head {
+    padding: 28px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+  }
+
+  .step-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--accent);
+    border-radius: 8px;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+  }
+
+  .step-head h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .step-head .goal {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  .step-head .goal strong { color: var(--yellow); font-weight: 600; }
+
+  .step-body {
+    padding: 28px 32px;
+  }
+
+  .step-body h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 28px 0 12px;
+    font-weight: 700;
+  }
+
+  .step-body h3:first-child { margin-top: 0; }
+
+  .step-body p {
+    margin-bottom: 12px;
+    font-size: 15px;
+  }
+
+  .step-body ul, .step-body ol {
+    margin: 0 0 12px 22px;
+    font-size: 15px;
+  }
+
+  .step-body li { margin-bottom: 6px; }
+
+  /* code blocks */
+  .code-block {
+    position: relative;
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 14px 0;
+    overflow: hidden;
+  }
+
+  .code-block .filename {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .code-block .filename .dots {
+    display: flex;
+    gap: 5px;
+  }
+  .code-block .filename .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border);
+  }
+
+  .code-block pre {
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .code-block code .comment { color: var(--text-dim); }
+  .code-block code .keyword { color: var(--accent-2); }
+  .code-block code .string { color: var(--green); }
+
+  /* checklist */
+  .checklist {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+
+  .checklist .ck-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+
+  .checklist label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .checklist input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: var(--green);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* note / callout */
+  .note {
+    border-left: 3px solid var(--accent);
+    background: rgba(88,166,255,0.06);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  .note strong { color: var(--accent); }
+
+  .note.warn {
+    border-left-color: var(--yellow);
+    background: rgba(210,153,34,0.08);
+  }
+  .note.warn strong { color: var(--yellow); }
+
+  /* step footer / takeaway */
+  .takeaway {
+    margin-top: 24px;
+    padding: 18px 20px;
+    background: rgba(63,185,80,0.06);
+    border: 1px solid rgba(63,185,80,0.25);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .takeaway .tk-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  /* final / argo recap */
+  .finale {
+    margin-top: 90px;
+    border: 1px solid rgba(247,129,102,0.35);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(247,129,102,0.06) 0%, var(--panel) 60%);
+    padding: 36px 32px;
+  }
+
+  .finale h2 {
+    font-size: 24px;
+    color: #fff;
+    margin-bottom: 14px;
+  }
+
+  .finale h2 span { color: var(--accent-2); }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+    font-size: 14px;
+  }
+
+  .compare-table th, .compare-table td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+  }
+
+  .compare-table th {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .compare-table td.highlight {
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  /* responsive */
+  @media (max-width: 640px) {
+    .step-head { flex-direction: column; }
+    .step-body, .step-head { padding: 20px; }
+    .rail { gap: 4px; }
+    .rail-item { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-tag">● hands-on guide</span>
+  <h1>Từ terminal đến ArgoCD</h1>
+  <p>6 bước thực hành để hiểu CI/CD từ gốc — trước khi để <code>ArgoCD</code> tự động hóa bước cuối cùng cho bạn.</p>
+</div>
+
+<nav class="rail">
+  <a class="rail-item" href="#step1"><span class="n">01</span>CI thủ công</a>
+  <a class="rail-item" href="#step2"><span class="n">02</span>GH Actions</a>
+  <a class="rail-item" href="#step3"><span class="n">03</span>kubectl</a>
+  <a class="rail-item" href="#step4"><span class="n">04</span>Push CD</a>
+  <a class="rail-item" href="#step5"><span class="n">05</span>GitOps repo</a>
+  <a class="rail-item" href="#step6"><span class="n">06</span>ArgoCD</a>
+</nav>
+
+<main>
+
+  <!-- STEP 1 -->
+  <section class="step" id="step1">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div>
+        <h2>CI thủ công bằng tay trên terminal</h2>
+        <div class="goal">Mục tiêu: hiểu <strong>pipeline</strong> thực chất chỉ là một chuỗi lệnh shell, không có gì huyền bí.</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Tạo app Node.js đơn giản</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># tạo project</span>
+mkdir hello-cicd && cd hello-cicd
+npm init -y
+npm install express
+npm install --save-dev jest supertest</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>app.js</span></div>
+        <pre><code><span class="keyword">const</span> express = require(<span class="string">'express'</span>);
+<span class="keyword">const</span> app = express();
+
+app.get(<span class="string">'/'</span>, (req, res) => {
+  res.send(<span class="string">'Hello CI/CD'</span>);
+});
+
+app.get(<span class="string">'/health'</span>, (req, res) => {
+  res.json({ status: <span class="string">'ok'</span> });
+});
+
+module.exports = app;</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>server.js</span></div>
+        <pre><code><span class="keyword">const</span> app = require(<span class="string">'./app'</span>);
+app.listen(<span class="string">3000</span>, () => console.log(<span class="string">'Listening on 3000'</span>));</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>app.test.js</span></div>
+        <pre><code><span class="keyword">const</span> request = require(<span class="string">'supertest'</span>);
+<span class="keyword">const</span> app = require(<span class="string">'./app'</span>);
+
+test(<span class="string">'GET / returns hello'</span>, async () => {
+  <span class="keyword">const</span> res = await request(app).get(<span class="string">'/'</span>);
+  expect(res.statusCode).toBe(<span class="string">200</span>);
+});
+
+test(<span class="string">'GET /health returns ok'</span>, async () => {
+  <span class="keyword">const</span> res = await request(app).get(<span class="string">'/health'</span>);
+  expect(res.body.status).toBe(<span class="string">'ok'</span>);
+});</code></pre>
+      </div>
+
+      <h3>2. Chạy "pipeline" bằng tay — từng lệnh một</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Bước build: cài dependencies</span>
+npm install
+
+<span class="comment"># Bước test: chạy unit test</span>
+npx jest
+
+<span class="comment"># Bước build image</span>
+docker build -t myuser/hello-cicd:v1 .
+
+<span class="comment"># Bước push lên registry (Docker Hub)</span>
+docker login
+docker push myuser/hello-cicd:v1</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>Dockerfile</span></div>
+        <pre><code><span class="keyword">FROM</span> node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+EXPOSE 3000
+CMD [<span class="string">"node"</span>, <span class="string">"server.js"</span>]</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>Quan sát:</strong> mỗi lần bạn sửa code, bạn phải tự lặp lại 4 lệnh trên theo đúng thứ tự — install → test → build → push.
+        Nếu quên chạy test, bug có thể bị push thẳng vào image. <strong>Đây chính là vấn đề CI giải quyết.</strong>
+      </div>
+
+      <div class="checklist">
+        <div class="ck-title">Checklist trước khi qua bước 2</div>
+        <label><input type="checkbox"> Chạy được <code>npx jest</code> và thấy 2 test pass</label>
+        <label><input type="checkbox"> Build được docker image thành công (<code>docker images</code> thấy image)</label>
+        <label><input type="checkbox"> Push được image lên Docker Hub / GHCR và thấy nó xuất hiện trên web registry</label>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Rút ra</div>
+        Pipeline = <strong>chuỗi lệnh có thứ tự cố định</strong> (install → test → build → push). CI tool không làm gì "ma thuật" — nó chỉ chạy đúng các lệnh này tự động mỗi khi có code mới.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div>
+        <h2>Tự động hóa CI với GitHub Actions</h2>
+        <div class="goal">Mục tiêu: biến 4 lệnh thủ công ở bước 1 thành <strong>workflow tự động</strong> mỗi khi push code.</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Push project lên GitHub</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code>git init
+git add .
+git commit -m <span class="string">"initial commit"</span>
+git remote add origin https://github.com/&lt;user&gt;/hello-cicd.git
+git push -u origin main</code></pre>
+      </div>
+
+      <h3>2. Tạo workflow CI</h3>
+      <div class="code-block">
+        <div class="filename"><span>.github/workflows/ci.yml</span></div>
+        <pre><code><span class="keyword">name:</span> CI
+
+<span class="keyword">on:</span>
+  push:
+    branches: [main]
+
+<span class="keyword">jobs:</span>
+  build-test-push:
+    runs-on: ubuntu-latest
+    steps:
+      - <span class="keyword">name:</span> Checkout code
+        uses: actions/checkout@v4
+
+      - <span class="keyword">name:</span> Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: <span class="string">'20'</span>
+
+      - <span class="keyword">name:</span> Install dependencies
+        run: npm install
+
+      - <span class="keyword">name:</span> Run tests
+        run: npx jest
+
+      - <span class="keyword">name:</span> Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - <span class="keyword">name:</span> Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            myuser/hello-cicd:latest
+            myuser/hello-cicd:${{ github.sha }}</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>Lưu ý:</strong> thêm 2 secret <code>DOCKERHUB_USERNAME</code> và <code>DOCKERHUB_TOKEN</code> trong
+        <em>Settings → Secrets and variables → Actions</em> trên GitHub repo.
+      </div>
+
+      <h3>3. Trigger và quan sát</h3>
+      <ul>
+        <li>Sửa nhẹ <code>app.js</code> (đổi text trả về), commit và push.</li>
+        <li>Vào tab <strong>Actions</strong> trên GitHub, theo dõi từng step chạy — chính là các lệnh bạn đã chạy tay ở bước 1.</li>
+        <li>Sau khi xong, kiểm tra Docker Hub: image mới với tag <code>github.sha</code> đã xuất hiện.</li>
+      </ul>
+
+      <div class="checklist">
+        <div class="ck-title">Checklist trước khi qua bước 3</div>
+        <label><input type="checkbox"> Workflow chạy xanh (pass) trên tab Actions</label>
+        <label><input type="checkbox"> Image mới với tag = commit SHA xuất hiện trên registry</label>
+        <label><input type="checkbox"> Thử sửa test cho fail → push → thấy workflow đỏ và <em>không</em> push image (vì step test fail chặn step sau)</label>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Rút ra</div>
+        GitHub Actions chỉ là "máy chạy lại các lệnh terminal của bạn" mỗi khi có sự kiện (push). <strong>CI = automation của bước build/test/push.</strong> Phần "deploy" vẫn chưa có gì cả.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step" id="step3">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div>
+        <h2>CD thủ công bằng kubectl</h2>
+        <div class="goal">Mục tiêu: hiểu "deploy" thực ra là <strong>thay đổi desired state</strong> trong cluster, không phải "chạy chương trình".</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Tạo cluster local</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># dùng kind (Kubernetes in Docker)</span>
+kind create cluster --name dev
+
+<span class="comment"># kiểm tra</span>
+kubectl get nodes</code></pre>
+      </div>
+
+      <h3>2. Viết manifest Deployment + Service</h3>
+      <div class="code-block">
+        <div class="filename"><span>k8s/deployment.yaml</span></div>
+        <pre><code><span class="keyword">apiVersion:</span> apps/v1
+<span class="keyword">kind:</span> Deployment
+<span class="keyword">metadata:</span>
+  name: hello-cicd
+<span class="keyword">spec:</span>
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-cicd
+  template:
+    metadata:
+      labels:
+        app: hello-cicd
+    spec:
+      containers:
+        - name: hello-cicd
+          image: myuser/hello-cicd:v1
+          ports:
+            - containerPort: 3000</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>k8s/service.yaml</span></div>
+        <pre><code><span class="keyword">apiVersion:</span> v1
+<span class="keyword">kind:</span> Service
+<span class="keyword">metadata:</span>
+  name: hello-cicd
+<span class="keyword">spec:</span>
+  selector:
+    app: hello-cicd
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: NodePort</code></pre>
+      </div>
+
+      <h3>3. Apply thủ công và xem thực tế</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code>kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+<span class="comment"># xem pod đang chạy</span>
+kubectl get pods
+kubectl get deployment hello-cicd</code></pre>
+      </div>
+
+      <h3>4. "Deploy phiên bản mới" = sửa tag rồi apply lại</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># build & push image v2 (lặp lại bước 1/2 với tag mới)</span>
+docker build -t myuser/hello-cicd:v2 .
+docker push myuser/hello-cicd:v2
+
+<span class="comment"># sửa tay file deployment.yaml: image: myuser/hello-cicd:v2</span>
+<span class="comment"># rồi apply lại</span>
+kubectl apply -f k8s/deployment.yaml
+
+<span class="comment"># quan sát rolling update diễn ra</span>
+kubectl rollout status deployment/hello-cicd
+kubectl get pods -w</code></pre>
+      </div>
+
+      <div class="note warn">
+        <strong>Quan sát quan trọng:</strong> bạn không "restart app" — bạn chỉ <em>thay đổi 1 dòng YAML</em> rồi apply.
+        Kubernetes tự so sánh state hiện tại với state mong muốn trong YAML và tự điều chỉnh (rolling update pod cũ → pod mới).
+      </div>
+
+      <div class="checklist">
+        <div class="ck-title">Checklist trước khi qua bước 4</div>
+        <label><input type="checkbox"> <code>kubectl get pods</code> thấy 2 pod Running</label>
+        <label><input type="checkbox"> Truy cập được service (qua NodePort hoặc port-forward) thấy "Hello CI/CD"</label>
+        <label><input type="checkbox"> Đổi tag image v1 → v2, apply lại, thấy pod được rolling update</label>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Rút ra</div>
+        "Deploy" = <strong>khai báo state mong muốn (YAML) rồi gửi cho API server</strong>. Việc còn lại — chạy container, rolling update — là Kubernetes tự làm (đúng như đã học ở kiến trúc controller/kubelet).
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="step" id="step4">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div>
+        <h2>CD tự động kiểu "push-based"</h2>
+        <div class="goal">Mục tiêu: ghép CI (bước 2) + CD (bước 3) lại — pipeline tự deploy sau khi build xong.</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Chuẩn bị kubeconfig cho GitHub Actions</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># lấy kubeconfig, encode base64 để lưu vào GitHub Secret</span>
+cat ~/.kube/config | base64 -w 0</code></pre>
+      </div>
+      <p>Lưu kết quả vào secret <code>KUBE_CONFIG_B64</code> trong GitHub repo.</p>
+
+      <h3>2. Thêm step deploy vào workflow</h3>
+      <div class="code-block">
+        <div class="filename"><span>.github/workflows/ci.yml (thêm vào cuối job trước)</span></div>
+        <pre><code>      <span class="comment"># ... các step build-test-push như bước 2 ...</span>
+
+      - <span class="keyword">name:</span> Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > ~/.kube/config
+
+      - <span class="keyword">name:</span> Update image tag and deploy
+        run: |
+          sed -i "s|image: myuser/hello-cicd:.*|image: myuser/hello-cicd:${{ github.sha }}|" k8s/deployment.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl rollout status deployment/hello-cicd</code></pre>
+      </div>
+
+      <h3>3. Trigger toàn bộ flow end-to-end</h3>
+      <ul>
+        <li>Sửa <code>app.js</code> lần nữa → commit → push.</li>
+        <li>Workflow: test → build → push image → <strong>tự deploy lên cluster</strong>.</li>
+        <li>Theo dõi <code>kubectl get pods -w</code> trên máy local để thấy pod mới xuất hiện ngay sau khi Action chạy xong.</li>
+      </ul>
+
+      <div class="note warn">
+        <strong>Hạn chế của mô hình này:</strong> GitHub Actions cần có <em>quyền truy cập trực tiếp</em> vào cluster (kubeconfig). Với cluster production thật, việc lưu credential trong CI là rủi ro bảo mật lớn — đây là lý do GitOps (bước 5-6) ra đời.
+      </div>
+
+      <div class="checklist">
+        <div class="ck-title">Checklist trước khi qua bước 5</div>
+        <label><input type="checkbox"> Push code → pipeline tự build, push image, và deploy không cần tay chạm vào <code>kubectl</code></label>
+        <label><input type="checkbox"> Hiểu rõ: CI tool (GitHub Actions) đang <strong>"push" (đẩy)</strong> thay đổi vào cluster — cluster hoàn toàn bị động</label>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Rút ra</div>
+        Đây là <strong>CD truyền thống — "push-based"</strong>: CI tool chủ động gửi lệnh vào cluster. Hoạt động tốt, nhưng cluster phải mở quyền cho hệ thống bên ngoài → vấn đề bảo mật & khó audit "ai/khi nào đã thay đổi gì".
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section class="step" id="step5">
+    <div class="step-head">
+      <div class="step-num">5</div>
+      <div>
+        <h2>Tách repo code và repo manifest (GitOps)</h2>
+        <div class="goal">Mục tiêu: làm cho <strong>Git trở thành nguồn sự thật duy nhất</strong> — chuẩn bị cho ArgoCD.</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Tạo repo thứ 2 — "config repo"</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># repo mới, chỉ chứa manifest</span>
+mkdir hello-cicd-config && cd hello-cicd-config
+git init
+mkdir k8s
+<span class="comment"># copy deployment.yaml + service.yaml từ bước 3 vào đây</span>
+git add .
+git commit -m <span class="string">"initial manifests"</span>
+git remote add origin https://github.com/&lt;user&gt;/hello-cicd-config.git
+git push -u origin main</code></pre>
+      </div>
+
+      <p>Giờ bạn có 2 repo riêng biệt:</p>
+      <ul>
+        <li><code>hello-cicd</code> — chứa source code app (repo bước 1-2)</li>
+        <li><code>hello-cicd-config</code> — chỉ chứa manifest YAML (single source of truth cho cluster)</li>
+      </ul>
+
+      <h3>2. Sửa workflow: không deploy trực tiếp, chỉ cập nhật config repo</h3>
+      <div class="code-block">
+        <div class="filename"><span>.github/workflows/ci.yml (thay step deploy ở bước 4)</span></div>
+        <pre><code>      <span class="comment"># ... build-test-push như cũ ...</span>
+
+      - <span class="keyword">name:</span> Checkout config repo
+        uses: actions/checkout@v4
+        with:
+          repository: &lt;user&gt;/hello-cicd-config
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          path: config-repo
+
+      - <span class="keyword">name:</span> Update image tag in manifest
+        run: |
+          cd config-repo
+          sed -i "s|image: myuser/hello-cicd:.*|image: myuser/hello-cicd:${{ github.sha }}|" k8s/deployment.yaml
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@example.com"
+          git add k8s/deployment.yaml
+          git commit -m "chore: bump image to ${{ github.sha }}"
+          git push</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>Lưu ý:</strong> <code>CONFIG_REPO_TOKEN</code> là Personal Access Token có quyền push vào repo <code>hello-cicd-config</code> — tạo trong GitHub Settings → Developer settings.
+      </div>
+
+      <h3>3. Trigger và quan sát</h3>
+      <ul>
+        <li>Push code vào <code>hello-cicd</code> → CI build/test/push image như cũ.</li>
+        <li>Bước cuối <strong>không còn gọi <code>kubectl</code></strong> — thay vào đó tạo 1 commit mới trong <code>hello-cicd-config</code> với tag image mới.</li>
+        <li>Mở repo <code>hello-cicd-config</code>, xem commit log: mỗi lần deploy = 1 commit, có timestamp, có message rõ ràng.</li>
+      </ul>
+
+      <div class="note warn">
+        <strong>Quan trọng:</strong> tại bước này, cluster <em>chưa</em> tự cập nhật! Commit trong config repo chỉ thay đổi Git, chưa ai apply nó vào cluster. Đây chính là "khoảng trống" mà ArgoCD sẽ lấp vào ở bước 6.
+      </div>
+
+      <div class="checklist">
+        <div class="ck-title">Checklist trước khi qua bước 6</div>
+        <label><input type="checkbox"> Push code app → thấy commit tự động xuất hiện trong config repo với tag mới</label>
+        <label><input type="checkbox"> Hiểu rằng: cluster hiện tại đang chạy image <em>cũ</em>, vì chưa ai <code>kubectl apply</code> commit mới</label>
+        <label><input type="checkbox"> Tự hỏi: "làm sao để cluster tự nhận biết và apply commit mới này?" → đó là câu hỏi ArgoCD trả lời</label>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Rút ra</div>
+        Git repo <code>hello-cicd-config</code> giờ là <strong>"desired state" tập trung</strong> — bất kỳ ai nhìn vào repo này đều biết chính xác cluster "nên" chạy phiên bản nào. Đây là nền tảng của GitOps.
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 6 -->
+  <section class="step" id="step6">
+    <div class="step-head">
+      <div class="step-num">6</div>
+      <div>
+        <h2>ArgoCD — pull-based CD</h2>
+        <div class="goal">Mục tiêu: để ArgoCD tự động làm bước "apply" mà ở bước 5 vẫn còn thiếu.</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Cài ArgoCD vào cluster</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code>kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+<span class="comment"># truy cập UI qua port-forward</span>
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+<span class="comment"># lấy password admin ban đầu</span>
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d</code></pre>
+      </div>
+
+      <h3>2. Tạo Application — trỏ về config repo ở bước 5</h3>
+      <div class="code-block">
+        <div class="filename"><span>argocd-app.yaml</span></div>
+        <pre><code><span class="keyword">apiVersion:</span> argoproj.io/v1alpha1
+<span class="keyword">kind:</span> Application
+<span class="keyword">metadata:</span>
+  name: hello-cicd
+  namespace: argocd
+<span class="keyword">spec:</span>
+  project: default
+  source:
+    repoURL: https://github.com/&lt;user&gt;/hello-cicd-config.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code>kubectl apply -f argocd-app.yaml</code></pre>
+      </div>
+
+      <h3>3. Lặp lại flow end-to-end và quan sát sự khác biệt</h3>
+      <ul>
+        <li>Push code mới vào <code>hello-cicd</code> → CI build/test/push image → commit tag mới vào <code>hello-cicd-config</code> (giống bước 5).</li>
+        <li><strong>Không cần làm gì thêm</strong> — trong vòng ~3 phút (hoặc bấm "Refresh" trên UI), ArgoCD tự phát hiện commit mới và tự <code>kubectl apply</code> vào cluster.</li>
+        <li>Mở ArgoCD UI, xem trạng thái <code>Synced</code> / <code>OutOfSync</code> và lịch sử sync.</li>
+      </ul>
+
+      <div class="note">
+        <strong>selfHeal: true</strong> — nếu ai đó vô tình <code>kubectl edit</code> trực tiếp vào cluster (sửa khác với Git), ArgoCD sẽ tự động revert lại đúng theo trạng thái trong Git. Thử nghiệm: chạy <code>kubectl scale deployment hello-cicd --replicas=5</code> rồi xem ArgoCD tự đưa về lại số replicas trong YAML.
+      </div>
+    </div>
+  </section>
+
+  <!-- FINALE -->
+  <section class="finale">
+    <h2>So sánh: Bước 4 <span>(push)</span> vs Bước 6 <span>(pull / ArgoCD)</span></h2>
+    <p>Đây chính là khác biệt cốt lõi giữa CD truyền thống và GitOps.</p>
+
+    <table class="compare-table">
+      <tr>
+        <th>Tiêu chí</th>
+        <th>Bước 4 — Push-based</th>
+        <th>Bước 6 — ArgoCD (pull-based)</th>
+      </tr>
+      <tr>
+        <td>Ai khởi tạo deploy</td>
+        <td>CI tool (GitHub Actions) chủ động gọi <code>kubectl apply</code></td>
+        <td class="highlight">ArgoCD trong cluster tự kéo (pull) thay đổi từ Git</td>
+      </tr>
+      <tr>
+        <td>Credential cluster</td>
+        <td>Phải lưu kubeconfig trong CI secrets</td>
+        <td class="highlight">Không cần — cluster không expose credential ra ngoài</td>
+      </tr>
+      <tr>
+        <td>Nguồn sự thật (source of truth)</td>
+        <td>Trạng thái CI pipeline + cluster (có thể lệch nhau)</td>
+        <td class="highlight">Git repo — luôn khớp 100% nhờ <code>selfHeal</code></td>
+      </tr>
+      <tr>
+        <td>Audit / rollback</td>
+        <td>Xem log CI pipeline</td>
+        <td class="highlight">Git history — rollback = <code>git revert</code></td>
+      </tr>
+      <tr>
+        <td>Thay đổi tay (drift)</td>
+        <td>Không phát hiện được</td>
+        <td class="highlight">Tự phát hiện và tự sửa (selfHeal)</td>
+      </tr>
+    </table>
+
+    <p style="margin-top: 18px; color: var(--text-dim); font-size: 14px;">
+      Sau khi đi qua đủ 6 bước, ArgoCD không còn là "hộp đen" — nó chỉ tự động hóa đúng phần việc bạn đã làm tay
+      (commit ở bước 5 → <code>kubectl apply</code> ở bước 3), nhưng theo hướng <strong>pull</strong> thay vì <strong>push</strong>.
+    </p>
+  </section>
+
+</main>
+
+</body>
+</html>
