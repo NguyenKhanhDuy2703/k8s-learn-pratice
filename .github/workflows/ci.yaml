@@ -37,4 +37,4 @@ jobs:
               with :
                 context : ./ci-cd-appilcation-1
                 push : true
-                tags : your-dockerhub-username/your-image-name:latest
+                tags: ${{ secrets.DOCKER_USERNAME }}/ci-cd-application:latest
