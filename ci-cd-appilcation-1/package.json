@@ -1,7 +1,9 @@
 {
   "scripts": {
     "start": "node server.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:unit": "jest --runInBand app.test.js",
+    "test:integration": "jest --runInBand integration.test.js"
   },
   "dependencies": {
     "express": "^5.2.1",
