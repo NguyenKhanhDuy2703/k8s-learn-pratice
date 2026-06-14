@@ -17,7 +17,7 @@ jobs:
             - name : set up node
               uses : actions/setup-node@v2
               with :
-                  node-version : '14'
+                  node-version : '20'
             - name : install dependencies 
               working-directory : ./ci-cd-appilcation-1
               run : npm install
@@ -27,6 +27,7 @@ jobs:
               run : npm test
 
             - name : build project
+              working-directory : ./ci-cd-appilcation-1
               run : npm run build
 
             - name : login to docker hub
