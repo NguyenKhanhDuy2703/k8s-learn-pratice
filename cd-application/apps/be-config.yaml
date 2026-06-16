@@ -13,7 +13,7 @@ spec:
     path: cd-application/be
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: fullstack-namespace
+    namespace: visualizer
   syncPolicy:
     automated:
       prune: true

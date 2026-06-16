@@ -21,7 +21,7 @@ jobs:
     uses: ./.github/workflows/template-update-manifest.yaml
     with:
       image_name: k8s-visualizer-be
-      manifest_file_path: ./cd-application/k8s-visualizer/be-deployment.yaml
+      manifest_file_path: ./cd-application/be/deployment.yaml
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       GH_PAT: ${{ secrets.GH_PAT }}

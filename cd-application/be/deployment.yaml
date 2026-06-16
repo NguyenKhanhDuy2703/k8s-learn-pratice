@@ -1,47 +1,45 @@
-apiVersion: v1
-kind: Rollout
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: backend-web
+  name: k8s-visualizer-be
+  namespace: visualizer
+  labels:
+    app: k8s-visualizer-be
 spec:
-  replica : 2
+  replicas: 1
   selector:
     matchLabels:
-      app: backend-web
+      app: k8s-visualizer-be
   template:
     metadata:
       labels:
-        app: backend-web
+        app: k8s-visualizer-be
     spec:
+      serviceAccountName: k8s-visualizer-sa
       containers:
-      - name: nginx-backend
-        image: nguyenkhanhduy/backeend-web-nguyenkhanhduy:latest
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        ports:
-        - containerPort: 3000
-    
-    livenessProbe:
-          httpGet: http
-          path : ping
-          port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-
-    readinessProbe:
-          httpGet: http
-          path : /health
-          port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-    
-    strategy:
-    canary :
-        steps:
-          - setWeight: 50
-          - pause: {duration: 5m}
-          - setWeight: 100
+        - name: be
+          image: nguyenkhanhduy/k8s-visualizer-be:latest
+          ports:
+            - containerPort: 3001
+          env:
+            - name: PORT
+              value: "3001"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 20
