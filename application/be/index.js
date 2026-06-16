@@ -1,5 +1,6 @@
 /**
  * K8s Cluster Visualizer - Backend Entry Point
+ * Build: 2
  *
  * Khởi động Express server + Socket.io, sau đó bắt đầu
  * watch Pod events để push realtime về FE.
