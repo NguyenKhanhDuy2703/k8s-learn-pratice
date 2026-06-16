@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: visualizer-project
+  namespace: argocd
+spec:
+  sourceRepos:
+    - 'https://github.com/NguyenKhanhDuy2703/k8s-learn-pratice'
+
+  destinations:
+    - namespace: visualizer
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
