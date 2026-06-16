@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: visualizer-project
   source:
     repoURL: 'https://github.com/NguyenKhanhDuy2703/k8s-learn-pratice.git'
     targetRevision: main
