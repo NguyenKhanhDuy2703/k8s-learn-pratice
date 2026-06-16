@@ -19,7 +19,7 @@ spec:
         - name: dockerhub-credentials
       containers:
         - name: fe
-          image: nguyenkhanhduy/k8s-visualizer-fe:latest
+          image: nkd7059181/k8s-visualizer-fe:latest
           ports:
             - containerPort: 80
           resources:
