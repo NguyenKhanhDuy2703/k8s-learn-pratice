@@ -24,3 +24,4 @@ jobs:
       manifest_file_path: ./cd-application/k8s-visualizer/be-deployment.yaml
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      GH_PAT: ${{ secrets.GH_PAT }}
