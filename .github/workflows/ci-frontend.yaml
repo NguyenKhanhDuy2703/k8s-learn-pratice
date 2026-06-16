@@ -4,49 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/fe/**"          # app cũ
-      - "application/fe/**"   # k8s-visualizer FE
+      - "application/fe/**"
 
 jobs:
-  # ── App cũ (apps/fe) ───────────────────────────────────────────────────────
-  test-frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./apps/fe
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install dependencies
-        run: npm install
-      - name: Run Tests
-        run: npm run test --if-present
-
   call-docker-build:
-    needs: [test-frontend]
-    uses: ./.github/workflows/template-docker-build.yaml
-    with:
-      working_directory: ./apps/fe
-      image_name: frontend-web
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  call-update-manifest:
-    needs: [call-docker-build]
-    uses: ./.github/workflows/template-update-manifest.yaml
-    with:
-      image_name: frontend-web
-      manifest_file_path: ./cd-application/fe/deployment.yaml
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  # ── K8s Visualizer FE (application/fe) ────────────────────────────────────
-  visualizer-fe-docker-build:
     uses: ./.github/workflows/template-docker-build.yaml
     with:
       working_directory: ./application/fe
@@ -55,8 +16,8 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-  visualizer-fe-update-manifest:
-    needs: [visualizer-fe-docker-build]
+  call-update-manifest:
+    needs: [call-docker-build]
     uses: ./.github/workflows/template-update-manifest.yaml
     with:
       image_name: k8s-visualizer-fe
