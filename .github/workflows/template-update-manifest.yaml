@@ -15,7 +15,9 @@ on:
       DOCKER_USERNAME:
         required: true
       GH_PAT:
-        required: false
+        # PAT cần scope: repo (read + write contents)
+        # Tạo tại: GitHub → Settings → Developer settings → Personal access tokens
+        required: true
 
 jobs:
   update-manifest:
@@ -26,14 +28,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT || github.token }}
+          # Dùng PAT thay vì github.token để có quyền push vào main
+          token: ${{ secrets.GH_PAT }}
           fetch-depth: 0
 
       - name: Update Image Tag in Deployment
         run: |
-          # sed tìm dòng image: <username>/<image_name>:* và thay tag = commit sha
           sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ github.sha }}|g" ${{ inputs.manifest_file_path }}
-          echo "Updated image tag:"
+          echo "--- Updated image tag ---"
           grep "image:" ${{ inputs.manifest_file_path }}
 
       - name: Commit and Push changes
@@ -41,8 +43,9 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           git add ${{ inputs.manifest_file_path }}
+          # Nếu không có thay đổi thì skip (tránh empty commit)
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "chore(cd): update ${{ inputs.image_name }} to ${{ github.sha }}"
-          # pull rebase để tránh conflict khi BE và FE cùng push
+          git commit -m "chore(cd): update ${{ inputs.image_name }} image to ${{ github.sha }}"
+          # Rebase trước khi push để tránh conflict khi BE và FE chạy song song
           git pull --rebase origin main
           git push origin main
