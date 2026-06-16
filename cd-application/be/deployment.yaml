@@ -16,6 +16,8 @@ spec:
         app: k8s-visualizer-be
     spec:
       serviceAccountName: k8s-visualizer-sa
+      imagePullSecrets:
+        - name: dockerhub-credentials
       containers:
         - name: be
           image: nguyenkhanhduy/k8s-visualizer-be:464df5e425f2365ba173eacb5083b9f2043f4241
