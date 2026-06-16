@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>K8s Security Deep Dive — DevOps Roadmap</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0f1e;
+    --bg2: #0f1728;
+    --bg3: #162038;
+    --border: #1e2d4a;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --code-bg: #070d1a;
+    --tag-bg: rgba(59,130,246,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #060d1f 0%, #0f1e3d 60%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 40px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-cyan);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(26px, 4vw, 46px);
+    font-weight: 700;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    max-width: 720px;
+  }
+  header h1 span {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-desc {
+    margin-top: 16px;
+    max-width: 600px;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .header-meta {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    background: var(--tag-bg);
+    border: 1px solid rgba(59,130,246,0.25);
+    color: var(--accent-blue);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .badge.green { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); color: var(--accent-green); }
+  .badge.amber { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); color: var(--accent-amber); }
+  .badge.purple { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); color: var(--accent-purple); }
+  .badge.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.25); color: var(--accent-red); }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  nav a {
+    display: block;
+    padding: 15px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  nav a:hover { color: var(--text); border-color: var(--accent-blue); }
+
+  /* ── LAYOUT ── */
+  main { max-width: 980px; margin: 0 auto; padding: 52px 32px 100px; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 80px; }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .section-subtitle {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.7;
+  }
+
+  /* ── EXPLAIN BOX (dành cho người mới) ── */
+  .explain {
+    background: rgba(6,182,212,0.05);
+    border: 1px solid rgba(6,182,212,0.15);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 6px;
+    padding: 20px 22px;
+    margin: 20px 0 28px;
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .explain strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 13px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+  .explain p { margin-bottom: 10px; }
+  .explain p:last-child { margin-bottom: 0; }
+  .explain .analogy {
+    margin-top: 12px;
+    background: rgba(6,182,212,0.06);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #7dd3fc;
+  }
+  .explain .analogy::before { content: '💡 Ví dụ thực tế: '; font-weight: 600; }
+
+  /* ── CONCEPT CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 20px 0 28px;
+  }
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .card:hover { border-color: rgba(59,130,246,0.35); transform: translateY(-2px); }
+  .card-icon { font-size: 22px; margin-bottom: 12px; }
+  .card h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .card p { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+  .card .card-source { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-cyan); opacity: 0.7; }
+  .card .card-note { margin-top: 10px; font-size: 12px; color: var(--accent-amber); background: rgba(245,158,11,0.07); border-radius: 4px; padding: 6px 10px; }
+
+  /* ── SUB HEADING ── */
+  .sub-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 36px 0 10px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sub-heading .sh-icon { font-size: 18px; }
+  .sub-heading-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.65; }
+
+  /* ── ARCH DIAGRAM ── */
+  .arch-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .arch-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    margin-bottom: 18px;
+  }
+  .arch-layer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+  }
+  .arch-node {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .arch-node.blue { border-color: rgba(59,130,246,0.4); color: #93c5fd; background: rgba(59,130,246,0.07); }
+  .arch-node.green { border-color: rgba(16,185,129,0.4); color: #6ee7b7; background: rgba(16,185,129,0.07); }
+  .arch-node.amber { border-color: rgba(245,158,11,0.4); color: #fcd34d; background: rgba(245,158,11,0.07); }
+  .arch-node.red { border-color: rgba(239,68,68,0.4); color: #fca5a5; background: rgba(239,68,68,0.07); }
+  .arch-node.purple { border-color: rgba(139,92,246,0.4); color: #c4b5fd; background: rgba(139,92,246,0.07); }
+  .arch-node.cyan { border-color: rgba(6,182,212,0.4); color: #67e8f9; background: rgba(6,182,212,0.07); }
+  .arch-arrow { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
+  .arch-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+  .arch-explain {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .arch-explain-item { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+  .arch-explain-item strong { color: var(--text); display: block; margin-bottom: 2px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── CODE BLOCKS ── */
+  .code-wrap { margin: 20px 0; }
+  .code-header {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .code-header-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .code-header-lang { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-blue);
+    border-radius: 0 0 6px 6px;
+    padding: 20px 22px;
+    overflow-x: auto;
+  }
+  .code-block pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #cbd5e1;
+    white-space: pre;
+  }
+  .code-block pre .kw  { color: #93c5fd; }
+  .code-block pre .key { color: #7dd3fc; }
+  .code-block pre .val { color: #86efac; }
+  .code-block pre .cm  { color: #475569; font-style: italic; }
+  .code-block pre .str { color: #fcd34d; }
+  .code-block pre .num { color: #f9a8d4; }
+  .code-block pre .op  { color: #f472b6; }
+  .code-block.green  { border-left-color: var(--accent-green); }
+  .code-block.amber  { border-left-color: var(--accent-amber); }
+  .code-block.red    { border-left-color: var(--accent-red); }
+  .code-block.purple { border-left-color: var(--accent-purple); }
+  .code-block.cyan   { border-left-color: var(--accent-cyan); }
+  .standalone-code {
+    border-radius: 6px;
+  }
+
+  /* code annotation */
+  .code-annotations {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ann-item {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+    align-items: flex-start;
+  }
+  .ann-marker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: rgba(59,130,246,0.15);
+    color: var(--accent-blue);
+    border-radius: 3px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .ann-marker.green { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+  .ann-marker.amber { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+  .ann-marker.red   { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+  .ann-marker.purple{ background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+
+  /* ── TERMINAL ── */
+  .terminal {
+    background: #020710;
+    border: 1px solid #1a2540;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  .terminal-bar {
+    background: #0c1526;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid #1a2540;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #ef4444; } .dot.y { background: #f59e0b; } .dot.g { background: #10b981; }
+  .terminal-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-left: 8px; }
+  .terminal-body { padding: 18px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.9; }
+  .t-prompt { color: #10b981; }
+  .t-cmd    { color: #e2e8f0; }
+  .t-out    { color: #64748b; }
+  .t-err    { color: #ef4444; }
+  .t-ok     { color: #10b981; }
+  .t-warn   { color: #f59e0b; }
+  .t-comment { color: #334155; font-style: italic; }
+  .t-section { color: #3b82f6; margin-top: 6px; }
+
+  /* ── STEPS ── */
+  .steps { display: flex; flex-direction: column; gap: 0; position: relative; margin: 20px 0; }
+  .steps::before {
+    content: ''; position: absolute;
+    left: 17px; top: 18px; bottom: 18px;
+    width: 1px; background: var(--border);
+  }
+  .step { display: flex; gap: 18px; align-items: flex-start; padding: 14px 0; }
+  .step-num {
+    width: 36px; height: 36px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    color: var(--accent-blue);
+    flex-shrink: 0; position: relative; z-index: 1;
+  }
+  .step-content { padding-top: 6px; flex: 1; }
+  .step-content h5 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 600;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .step-content p { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+  .step-content .step-cmd {
+    margin-top: 8px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #86efac;
+  }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+  .callout.info   { background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.2); }
+  .callout.warn   { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); }
+  .callout.tip    { background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.2); }
+  .callout.danger { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); }
+  .callout-icon { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { color: var(--text-dim); }
+  .callout-body strong { display: block; margin-bottom: 5px; color: var(--text); font-size: 14px; }
+
+  /* ── COMPARE TABLE ── */
+  .compare-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+  .compare-table th {
+    background: var(--bg3); padding: 12px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+  }
+  .compare-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(30,45,74,0.5);
+    color: var(--text-dim); vertical-align: top;
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text); white-space: nowrap;
+  }
+  .check { color: var(--accent-green); font-weight: 600; }
+  .cross { color: var(--accent-red); font-weight: 600; }
+
+  /* ── LEVEL BARS ── */
+  .level-list { display: flex; flex-direction: column; gap: 14px; margin: 16px 0 24px; }
+  .level-item { display: flex; align-items: flex-start; gap: 16px; }
+  .level-left { width: 70px; flex-shrink: 0; }
+  .level-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); }
+  .level-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); }
+  .level-right { flex: 1; }
+  .level-bar-bg { height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+  .level-bar { height: 100%; border-radius: 4px; }
+  .level-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+  .level-tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .level-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); background: var(--bg3); border-radius: 3px; padding: 1px 7px; border: 1px solid var(--border); }
+
+  /* ── SOURCE LINKS ── */
+  .source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(6,182,212,0.07); border: 1px solid rgba(6,182,212,0.2);
+    color: var(--accent-cyan);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 3px 9px; border-radius: 3px;
+    text-decoration: none; margin: 3px 3px 3px 0;
+    transition: background 0.2s;
+  }
+  .source-link:hover { background: rgba(6,182,212,0.14); }
+  .links-row { margin: 10px 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 64px 0;
+  }
+
+  /* ── FLOW COMPARISON (audit vs deny) ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  @media(max-width: 640px){ .two-col { grid-template-columns: 1fr; } }
+  .col-box {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 18px;
+  }
+  .col-box h5 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 600;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .col-box ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .col-box ul li { font-size: 12.5px; color: var(--text-dim); padding-left: 14px; position: relative; line-height: 1.55; }
+  .col-box ul li::before { content: '—'; position: absolute; left: 0; color: var(--text-muted); }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 32px 40px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 2;
+  }
+  footer a { color: var(--accent-cyan); text-decoration: none; }
+
+  @media(max-width:640px){
+    header { padding: 36px 20px 28px; }
+    main { padding: 32px 16px 60px; }
+    nav { padding: 0 8px; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+
+  /* inline code */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(59,130,246,0.1);
+    color: #93c5fd;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-eyebrow">// DevOps Security · Học từ nền tảng</div>
+  <h1>Kubernetes Security<br><span>Deep Dive cho người mới</span></h1>
+  <p class="header-desc">Hướng dẫn đầy đủ từ phân quyền (RBAC), kiểm duyệt đầu vào (Admission Policy), quản lý bí mật (Secrets Rotation) đến bảo mật chuỗi cung ứng (Supply Chain). Mỗi phần đều có giải thích tại sao, ví dụ thực tế, và code mẫu có thể chạy ngay.</p>
+  <div class="header-meta">
+    <span class="badge">RBAC</span>
+    <span class="badge">Admission Policy</span>
+    <span class="badge green">Secrets Rotation</span>
+    <span class="badge amber">Supply Chain</span>
+    <span class="badge purple">Cosign · Trivy</span>
+    <span class="badge red">SLSA</span>
+  </div>
+</header>
+
+<nav>
+  <a href="#rbac">① RBAC</a>
+  <a href="#admission">② Admission</a>
+  <a href="#gatekeeper">③ OPA/Gatekeeper</a>
+  <a href="#vap">④ CEL Native</a>
+  <a href="#secrets">⑤ Secrets Rotation</a>
+  <a href="#eso">⑥ External Secrets</a>
+  <a href="#supply">⑦ Supply Chain</a>
+  <a href="#trivy">⑧ Trivy</a>
+  <a href="#cosign">⑨ Cosign</a>
+  <a href="#slsa">⑩ SLSA</a>
+</nav>
+
+<main>
+
+<!-- ════════════════════════════════════════════
+     1. RBAC
+════════════════════════════════════════════ -->
+<section class="section" id="rbac">
+  <div class="section-label">// 01 · Phân quyền</div>
+  <h2>RBAC — Role-Based Access Control</h2>
+  <p class="section-subtitle">
+    RBAC là hệ thống kiểm soát <strong>ai</strong> được làm <strong>gì</strong> với <strong>tài nguyên nào</strong> trong Kubernetes cluster. Đây là lớp bảo vệ đầu tiên và quan trọng nhất — không có RBAC đúng, mọi thứ khác đều vô nghĩa.
+    <br><br>
+    <a class="source-link" href="https://kubernetes.io/docs/reference/access-authn-authz/rbac" target="_blank">↗ kubernetes.io/docs/rbac</a>
+  </p>
+
+  <div class="explain">
+    <strong>// Tại sao cần RBAC?</strong>
+    <p>Trong một cluster production, có thể có hàng chục team: dev backend, dev frontend, data engineer, SRE, CI/CD bot... Nếu tất cả đều có quyền admin, chỉ cần một người nhỡ tay <code>kubectl delete namespace production</code> là mất sạch. RBAC giúp mỗi người chỉ làm được đúng việc của mình.</p>
+    <div class="analogy">Nghĩ như hệ thống thẻ từ trong tòa nhà: nhân viên tầng 3 chỉ mở được cửa tầng 3, bảo vệ mở được tất cả, khách chỉ vào sảnh. Mỗi người có một "role" khác nhau.</div>
+  </div>
+
+  <div class="arch-box">
+    <div class="arch-title">// Luồng xử lý một request kubectl</div>
+    <div class="arch-layer">
+      <div class="arch-node blue">kubectl apply</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node cyan">API Server</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node amber">① AuthN<br><span style="font-size:10px;color:#94a3b8">Bạn là ai?</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node green">② AuthZ/RBAC<br><span style="font-size:10px;color:#94a3b8">Bạn được làm gì?</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node purple">③ Admission<br><span style="font-size:10px;color:#94a3b8">Object có hợp lệ?</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node blue">etcd ✓</div>
+    </div>
+    <div class="arch-explain">
+      <div class="arch-explain-item"><strong>AuthN (Authentication)</strong>Xác minh danh tính: token, certificate, OIDC. Trả lời: "Đây là ServiceAccount <code>ci-runner</code>"</div>
+      <div class="arch-explain-item"><strong>AuthZ / RBAC</strong>Kiểm tra quyền: user này có Role nào? Role đó có cho phép action này không?</div>
+      <div class="arch-explain-item"><strong>Admission Control</strong>Kiểm tra nội dung object: Pod có đúng format? Có vi phạm policy không? (sẽ học ở phần tiếp)</div>
+    </div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">🧩</span> Bốn đối tượng cần nhớ trong RBAC</h3>
+  <p class="sub-heading-desc">RBAC trong K8s chỉ xoay quanh 4 loại object. Hiểu rõ 4 thứ này là nắm được toàn bộ hệ thống.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h4>Role</h4>
+      <p>Định nghĩa một tập hợp quyền <em>bên trong một namespace cụ thể</em>. Ví dụ: "Được phép <code>get</code> và <code>list</code> Pods trong namespace <code>backend</code>".</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--text-muted)">→ Chỉ có hiệu lực trong namespace khai báo</p>
+      <div class="card-source">kind: Role · namespace-scoped</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h4>ClusterRole</h4>
+      <p>Giống Role nhưng <em>có hiệu lực toàn cluster</em>. Dùng cho tài nguyên không thuộc namespace (Nodes, PersistentVolumes) hoặc muốn tái sử dụng quyền trên nhiều namespace.</p>
+      <div class="card-source">kind: ClusterRole · cluster-scoped</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <h4>RoleBinding</h4>
+      <p>"Gán" một Role (hoặc ClusterRole) cho một Subject trong một namespace. Subject có thể là <code>User</code>, <code>Group</code>, hoặc <code>ServiceAccount</code>.</p>
+      <div class="card-note">⚠️ Không có binding → Role chỉ là tờ giấy trắng, không có tác dụng gì</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">⛓️</div>
+      <h4>ClusterRoleBinding</h4>
+      <p>Gán ClusterRole cho một Subject <em>trên toàn cluster</em>. Cực kỳ mạnh — chỉ dùng khi thực sự cần, như gán quyền cho cluster-wide controller.</p>
+      <div class="card-source">kind: ClusterRoleBinding · cluster-scoped</div>
+    </div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">📝</span> Ví dụ thực tế: Phân quyền cho CI/CD Bot</h3>
+  <p class="sub-heading-desc">Giả sử bạn có một CI pipeline (GitHub Actions) cần deploy Pod vào namespace <code>backend</code>. Không nên cho bot này quyền admin. Chỉ cấp đúng những gì nó cần.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 1 — Tạo Role với quyền tối thiểu</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block">
+      <pre><span class="key">apiVersion</span>: <span class="val">rbac.authorization.k8s.io/v1</span>
+<span class="key">kind</span>: <span class="val">Role</span>
+<span class="key">metadata</span>:
+  <span class="key">namespace</span>: <span class="val">backend</span>     <span class="cm"># ← chỉ có hiệu lực trong namespace này</span>
+  <span class="key">name</span>: <span class="val">ci-deploy-role</span>
+<span class="key">rules</span>:
+<span class="cm"># Rule 1: Cho phép đọc và tạo Pod</span>
+- <span class="key">apiGroups</span>: [<span class="str">""</span>]          <span class="cm"># "" = core API group (Pod, Service, ConfigMap...)</span>
+  <span class="key">resources</span>: [<span class="str">"pods"</span>]
+  <span class="key">verbs</span>: [<span class="str">"get"</span>, <span class="str">"list"</span>, <span class="str">"create"</span>, <span class="str">"update"</span>, <span class="str">"delete"</span>]
+<span class="cm"># Rule 2: Cho phép cập nhật Deployment</span>
+- <span class="key">apiGroups</span>: [<span class="str">"apps"</span>]    <span class="cm"># "apps" = Deployment, StatefulSet, DaemonSet</span>
+  <span class="key">resources</span>: [<span class="str">"deployments"</span>]
+  <span class="key">verbs</span>: [<span class="str">"get"</span>, <span class="str">"list"</span>, <span class="str">"update"</span>, <span class="str">"patch"</span>]
+<span class="cm"># KHÔNG cấp: secrets, namespaces, clusterroles...</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker">apiGroups</div>Nhóm API. <code>""</code> là nhóm core (Pod, Service...). <code>"apps"</code> cho Deployment. <code>"rbac.authorization.k8s.io"</code> cho Role/ClusterRole.</div>
+      <div class="ann-item"><div class="ann-marker">verbs</div>Các hành động được phép: <code>get</code>, <code>list</code>, <code>watch</code>, <code>create</code>, <code>update</code>, <code>patch</code>, <code>delete</code>. <strong>Không bao giờ dùng <code>*</code> trong production.</strong></div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 2 — Tạo ServiceAccount cho CI bot</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block green">
+      <pre><span class="key">apiVersion</span>: <span class="val">v1</span>
+<span class="key">kind</span>: <span class="val">ServiceAccount</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">ci-runner</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+<span class="cm"># K8s sẽ tự tạo token cho ServiceAccount này</span>
+<span class="cm"># Dùng token này trong GitHub Actions để xác thực với cluster</span></pre>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 3 — RoleBinding: gắn Role với ServiceAccount</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block amber">
+      <pre><span class="key">apiVersion</span>: <span class="val">rbac.authorization.k8s.io/v1</span>
+<span class="key">kind</span>: <span class="val">RoleBinding</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">ci-deploy-binding</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+<span class="key">subjects</span>:                      <span class="cm"># ← "Gán cho ai?"</span>
+- <span class="key">kind</span>: <span class="val">ServiceAccount</span>
+  <span class="key">name</span>: <span class="val">ci-runner</span>          <span class="cm"># ← ServiceAccount vừa tạo</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+<span class="key">roleRef</span>:                       <span class="cm"># ← "Gán Role nào?"</span>
+  <span class="key">kind</span>: <span class="val">Role</span>
+  <span class="key">name</span>: <span class="val">ci-deploy-role</span>      <span class="cm"># ← Role vừa tạo</span>
+  <span class="key">apiGroup</span>: <span class="val">rbac.authorization.k8s.io</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker amber">subjects</div>Danh sách "người" được nhận quyền. Có thể gán nhiều subject cùng một lúc (nhiều ServiceAccount, nhiều Group).</div>
+      <div class="ann-item"><div class="ann-marker amber">roleRef</div>Sau khi binding được tạo, <strong>không thể sửa roleRef</strong>. Muốn đổi Role phải xóa binding và tạo lại.</div>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="terminal-title">terminal — kiểm tra quyền</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-comment"># Kiểm tra ServiceAccount "ci-runner" có thể tạo Pod không?</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl auth can-i create pods \</span></div>
+      <div><span class="t-cmd">    --as system:serviceaccount:backend:ci-runner \</span></div>
+      <div><span class="t-cmd">    -n backend</span></div>
+      <div><span class="t-ok">yes</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Kiểm tra nó có xóa được Namespace không?</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl auth can-i delete namespaces \</span></div>
+      <div><span class="t-cmd">    --as system:serviceaccount:backend:ci-runner</span></div>
+      <div><span class="t-err">no</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Xem tất cả RoleBindings trong namespace backend</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl get rolebindings -n backend -o wide</span></div>
+      <div><span class="t-out">NAME                 ROLE                    AGE  USERS  GROUPS  SERVICEACCOUNTS</span></div>
+      <div><span class="t-out">ci-deploy-binding    Role/ci-deploy-role     5m          backend/ci-runner</span></div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Lỗi thường gặp khi học RBAC</strong>
+      <strong style="display:inline;color:var(--accent-amber)">1.</strong> Tạo Role nhưng quên RoleBinding → không có hiệu lực gì. <br>
+      <strong style="display:inline;color:var(--accent-amber)">2.</strong> Dùng ClusterRoleBinding thay vì RoleBinding khi không cần → quyền quá rộng. <br>
+      <strong style="display:inline;color:var(--accent-amber)">3.</strong> Sai <code>namespace</code> trong <code>subjects</code> → binding không match đúng ServiceAccount.
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     2. ADMISSION POLICY (tổng quan)
+════════════════════════════════════════════ -->
+<section class="section" id="admission">
+  <div class="section-label">// 02 · Kiểm duyệt đầu vào</div>
+  <h2>Admission Policy — Bảo vệ tại cổng vào</h2>
+  <p class="section-subtitle">
+    Sau khi RBAC xác nhận bạn có quyền tạo một Pod, Admission Control sẽ kiểm tra <em>nội dung</em> của Pod đó. Đây là nơi thực thi các quy tắc bảo mật như "không được chạy với user root", "phải có label nhất định", "image phải từ registry nội bộ"...
+  </p>
+
+  <div class="explain">
+    <strong>// RBAC vs Admission Control — Khác nhau thế nào?</strong>
+    <p><strong>RBAC</strong> trả lời: <em>"Bạn có quyền tạo Pod không?"</em> — Kiểm tra danh tính và quyền hạn.</p>
+    <p><strong>Admission Control</strong> trả lời: <em>"Pod bạn muốn tạo có đúng chuẩn không?"</em> — Kiểm tra nội dung object.</p>
+    <div class="analogy">RBAC như nhân viên bảo vệ kiểm tra thẻ ID. Admission Control như nhân viên hải quan kiểm tra nội dung hành lý — dù bạn có thẻ hợp lệ, họ vẫn có thể từ chối nếu bạn mang đồ cấm.</div>
+  </div>
+
+  <div class="arch-box">
+    <div class="arch-title">// Hai loại Admission Webhook</div>
+    <div class="arch-layer">
+      <div class="arch-node blue">Request đến</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node amber">Mutating Webhook<br><span style="font-size:10px;color:#94a3b8">Có thể chỉnh sửa object</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node purple">Object được validate lại</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node red">Validating Webhook<br><span style="font-size:10px;color:#94a3b8">Chỉ cho phép hoặc từ chối</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node green">etcd ✓</div>
+    </div>
+    <div class="arch-explain">
+      <div class="arch-explain-item"><strong>Mutating (sửa đổi)</strong>Chạy trước. Có thể inject thêm container (như sidecar Istio), tự động thêm label, set default values. Kyverno và Gatekeeper đều hỗ trợ.</div>
+      <div class="arch-explain-item"><strong>Validating (kiểm tra)</strong>Chạy sau, chỉ được Allow hoặc Deny — không được sửa object. OPA Gatekeeper, Kyverno, và CEL-based VAP đều là validating.</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="col-box">
+      <h5 style="color: var(--accent-amber)">🔍 Audit Mode</h5>
+      <ul>
+        <li>Request vi phạm vẫn được <strong>cho qua</strong></li>
+        <li>Vi phạm được ghi vào <code>.status.violations</code> của Constraint</li>
+        <li>Dùng để khảo sát trước khi bật enforce — tránh làm sập production</li>
+        <li>Command: <code>kubectl describe constraint &lt;tên&gt;</code></li>
+      </ul>
+    </div>
+    <div class="col-box">
+      <h5 style="color: var(--accent-red)">🚫 Enforce Mode</h5>
+      <ul>
+        <li>Request vi phạm bị <strong>từ chối ngay lập tức</strong></li>
+        <li>Trả về HTTP 403 với thông báo lỗi từ policy</li>
+        <li>Terminal sẽ thấy: <code>Error from server (Forbidden)</code></li>
+        <li>Bật sau khi đã audit và xử lý hết violations hiện có</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     3. OPA GATEKEEPER
+════════════════════════════════════════════ -->
+<section class="section" id="gatekeeper">
+  <div class="section-label">// 03 · Policy Engine · Rego</div>
+  <h2>OPA Gatekeeper — Policy bằng ngôn ngữ Rego</h2>
+  <p class="section-subtitle">
+    Gatekeeper là controller chạy trong cluster, nhận Webhook call từ API Server và đánh giá policy bằng ngôn ngữ Rego của OPA (Open Policy Agent). Linh hoạt nhất nhưng có learning curve cao nhất.
+    <div class="links-row">
+      <a class="source-link" href="https://open-policy-agent.github.io/gatekeeper" target="_blank">↗ gatekeeper docs</a>
+      <a class="source-link" href="https://www.openpolicyagent.org/docs" target="_blank">↗ opa/rego docs</a>
+    </div>
+  </p>
+
+  <div class="explain">
+    <strong>// Rego là gì? Tại sao dùng nó?</strong>
+    <p>Rego là ngôn ngữ declarative chuyên dùng để viết policy. Thay vì viết code "làm gì nếu điều kiện A", bạn viết "điều kiện vi phạm trông như thế nào". OPA engine tự xử lý logic còn lại.</p>
+    <p>Hàm quan trọng nhất trong Rego là <code>violation[{"msg": msg}]</code> — nếu hàm này trả về kết quả (không rỗng), request bị từ chối với thông báo <code>msg</code>.</p>
+    <div class="analogy">Rego như viết "luật" thay vì viết "code thực thi luật". Bạn định nghĩa "vi phạm trông như thế nào" — còn Gatekeeper tự lo việc kiểm tra.</div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">🏗️</span> Kiến trúc 2 tầng: Template → Constraint</h3>
+  <p class="sub-heading-desc">Gatekeeper tách logic ra khỏi cấu hình. Template viết một lần, Constraint có thể tạo nhiều instance với tham số khác nhau.</p>
+
+  <div class="arch-box">
+    <div class="arch-title">// Quan hệ giữa ConstraintTemplate và Constraint</div>
+    <div class="arch-layer">
+      <div class="arch-node purple">ConstraintTemplate<br><span style="font-size:10px;color:#94a3b8">Chứa logic Rego<br>Tạo ra 1 CRD mới</span></div>
+      <div class="arch-arrow">→ sinh ra →</div>
+      <div class="arch-node cyan">CRD mới trong cluster<br><span style="font-size:10px;color:#94a3b8">kind: K8sRequiredLabels</span></div>
+    </div>
+    <div class="arch-layer" style="margin-top:10px;">
+      <div class="arch-node green">Constraint (instance 1)<br><span style="font-size:10px;color:#94a3b8">namespace: backend<br>labels: [env]</span></div>
+      <div style="width:20px;"></div>
+      <div class="arch-node green">Constraint (instance 2)<br><span style="font-size:10px;color:#94a3b8">namespace: frontend<br>labels: [team, app]</span></div>
+      <div style="width:20px;"></div>
+      <div class="arch-node amber">... nhiều instance<br><span style="font-size:10px;color:#94a3b8">cùng logic, khác cấu hình</span></div>
+    </div>
+    <div class="arch-explain">
+      <div class="arch-explain-item"><strong>ConstraintTemplate</strong>Viết một lần. Chứa Rego logic và khai báo schema cho parameters. Khi apply, Gatekeeper tự tạo một CRD mới trong cluster.</div>
+      <div class="arch-explain-item"><strong>Constraint</strong>Là instance của template. Khai báo scope (namespace nào, resource nào) và truyền parameters vào logic Rego.</div>
+      <div class="arch-explain-item"><strong>Lợi ích</strong>Tái sử dụng logic. Một template "require labels" có thể tạo hàng chục constraint cho hàng chục namespace/team khác nhau.</div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">ConstraintTemplate — Yêu cầu Pod phải có label bắt buộc</span>
+      <span class="code-header-lang">yaml + rego</span>
+    </div>
+    <div class="code-block purple">
+      <pre><span class="key">apiVersion</span>: <span class="val">templates.gatekeeper.sh/v1</span>
+<span class="key">kind</span>: <span class="val">ConstraintTemplate</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">k8srequiredlabels</span>  <span class="cm"># phải là lowercase</span>
+<span class="key">spec</span>:
+  <span class="key">crd</span>:
+    <span class="key">spec</span>:
+      <span class="key">names</span>:
+        <span class="key">kind</span>: <span class="val">K8sRequiredLabels</span>  <span class="cm"># CRD mới sẽ được tạo với kind này</span>
+      <span class="key">validation</span>:
+        <span class="key">openAPIV3Schema</span>:         <span class="cm"># schema cho parameters truyền vào</span>
+          <span class="key">properties</span>:
+            <span class="key">labels</span>:
+              <span class="key">type</span>: <span class="val">array</span>
+              <span class="key">items</span>: { <span class="key">type</span>: <span class="val">string</span> }
+
+  <span class="key">targets</span>:
+  - <span class="key">target</span>: <span class="val">admission.k8s.gatekeeper.sh</span>
+    <span class="key">rego</span>: |
+      <span class="cm"># Đặt tên package trùng với metadata.name</span>
+      package k8srequiredlabels
+
+      <span class="cm"># Hàm violation: nếu hàm này có output → request bị reject</span>
+      violation[{"msg": msg}] {
+        <span class="cm"># Lấy tập labels mà object đang có</span>
+        provided := {label | input.review.object.metadata.labels[label]}
+
+        <span class="cm"># Lấy tập labels bắt buộc từ parameters của Constraint</span>
+        required := {label | label := input.parameters.labels[_]}
+
+        <span class="cm"># Tính tập labels còn thiếu</span>
+        missing := required - provided
+
+        <span class="cm"># Nếu còn thiếu label nào → vi phạm</span>
+        count(missing) > 0
+
+        <span class="cm"># Thông báo lỗi trả về cho người dùng</span>
+        msg := sprintf("Thiếu labels bắt buộc: %v", [missing])
+      }</pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker purple">input.review.object</div>Object mà user đang cố apply. Với Pod thì là <code>input.review.object.metadata.labels</code>, <code>.spec.containers</code>...</div>
+      <div class="ann-item"><div class="ann-marker purple">input.parameters</div>Dữ liệu được truyền từ Constraint xuống. Ở đây là mảng <code>labels</code> cần kiểm tra.</div>
+      <div class="ann-item"><div class="ann-marker purple">violation</div>Nếu function này trả về bất kỳ kết quả nào (set không rỗng), Gatekeeper sẽ reject request với <code>msg</code> tương ứng.</div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Constraint — Áp dụng policy vào namespace "backend"</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block green">
+      <pre><span class="key">apiVersion</span>: <span class="val">constraints.gatekeeper.sh/v1beta1</span>
+<span class="key">kind</span>: <span class="val">K8sRequiredLabels</span>       <span class="cm"># kind này do ConstraintTemplate tạo ra</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">require-env-label</span>
+<span class="key">spec</span>:
+  <span class="key">enforcementAction</span>: <span class="val">deny</span>     <span class="cm"># "audit" → chỉ log | "deny" → block</span>
+
+  <span class="key">match</span>:                         <span class="cm"># Policy áp dụng cho những gì?</span>
+    <span class="key">kinds</span>:
+    - <span class="key">apiGroups</span>: [<span class="str">""</span>]
+      <span class="key">kinds</span>: [<span class="str">"Pod"</span>]             <span class="cm"># Chỉ check Pod</span>
+    <span class="key">namespaces</span>: [<span class="str">"backend"</span>]     <span class="cm"># Chỉ trong namespace "backend"</span>
+    <span class="cm"># excludedNamespaces: ["kube-system"] ← loại trừ nếu cần</span>
+
+  <span class="key">parameters</span>:                    <span class="cm"># Truyền vào input.parameters trong Rego</span>
+    <span class="key">labels</span>: [<span class="str">"env"</span>, <span class="str">"team"</span>]    <span class="cm"># Pod phải có 2 labels này</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker green">enforcementAction: audit</div>Giai đoạn testing — Pod vi phạm vẫn được tạo, nhưng ghi vào <code>.status.violations</code>. Dùng lệnh <code>kubectl get constraint require-env-label -o yaml</code> để xem ai đang vi phạm.</div>
+      <div class="ann-item"><div class="ann-marker green">enforcementAction: deny</div>Giai đoạn production — Pod vi phạm bị chặn ngay. User thấy lỗi <code>Error from server (Forbidden)</code>.</div>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="terminal-title">terminal — workflow audit → enforce</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-section">=== Giai đoạn 1: Audit (khảo sát) ===</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Xem các violations hiện tại (Pod nào đang thiếu label)</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl describe constraint require-env-label</span></div>
+      <div><span class="t-out">Status:</span></div>
+      <div><span class="t-out">  Total Violations: 3</span></div>
+      <div><span class="t-out">  Violations:</span></div>
+      <div><span class="t-out">    - Message: Thiếu labels bắt buộc: {"env","team"}</span></div>
+      <div><span class="t-out">      Name: old-api-pod</span></div>
+      <div><span class="t-out">      Namespace: backend</span></div>
+      <div><span class="t-out">    - Message: Thiếu labels bắt buộc: {"team"}</span></div>
+      <div><span class="t-out">      Name: payment-service</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-section">=== Giai đoạn 2: Enforce (sau khi đã fix violations) ===</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Thử tạo Pod thiếu label (sẽ bị block)</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl apply -f pod-no-labels.yaml -n backend</span></div>
+      <div><span class="t-err">Error from server (Forbidden): error when creating "pod-no-labels.yaml":</span></div>
+      <div><span class="t-err">  admission webhook "validation.gatekeeper.sh" denied the request:</span></div>
+      <div><span class="t-err">  [require-env-label] Thiếu labels bắt buộc: {"env","team"}</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Tạo Pod đúng chuẩn (có đủ labels)</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl apply -f pod-with-labels.yaml -n backend</span></div>
+      <div><span class="t-ok">pod/api-v2 created</span></div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Kyverno — Lựa chọn thay thế cho team không muốn học Rego</strong>
+      Kyverno viết policy hoàn toàn bằng YAML, không cần học ngôn ngữ mới. Phù hợp team nhỏ cần onboard nhanh. Nhược điểm: policy phức tạp (nhiều điều kiện lồng nhau) dễ trở nên cồng kềnh hơn Rego.
+      <a class="source-link" href="https://kyverno.io/docs" target="_blank">↗ kyverno.io/docs</a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     4. ValidatingAdmissionPolicy (CEL)
+════════════════════════════════════════════ -->
+<section class="section" id="vap">
+  <div class="section-label">// 04 · Native K8s 1.30+ · CEL</div>
+  <h2>ValidatingAdmissionPolicy — Không cần cài thêm gì</h2>
+  <p class="section-subtitle">
+    Từ K8s 1.30 (GA), bạn có thể viết admission policy trực tiếp vào API Server bằng CEL (Common Expression Language) — không cần deploy Gatekeeper hay Kyverno. Ít tính năng hơn nhưng zero overhead.
+    <div class="links-row">
+      <a class="source-link" href="https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/" target="_blank">↗ kubernetes.io/docs/validating-admission-policy</a>
+    </div>
+  </p>
+
+  <div class="explain">
+    <strong>// CEL là gì?</strong>
+    <p>Common Expression Language là ngôn ngữ biểu thức nhỏ gọn được Google thiết kế cho việc validation và filtering. K8s đã nhúng CEL vào API Server từ v1.25 và dùng nó cho nhiều feature (CustomResourceValidation, ValidatingAdmissionPolicy...).</p>
+    <p>Khác với Rego (Turing-complete), CEL có giới hạn tính toán — nhưng điều này là intentional: policy an toàn hơn, không thể viết vòng lặp vô hạn, và API Server có thể đánh giá cực nhanh.</p>
+    <div class="analogy">Nếu Rego là JavaScript (cực linh hoạt), thì CEL là regex nâng cấp (đơn giản, an toàn, nhanh). Đủ dùng cho 80% use cases phổ biến.</div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">ValidatingAdmissionPolicy — Yêu cầu label "env" bằng CEL</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block amber">
+      <pre><span class="key">apiVersion</span>: <span class="val">admissionregistration.k8s.io/v1</span>
+<span class="key">kind</span>: <span class="val">ValidatingAdmissionPolicy</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">require-env-label</span>
+<span class="key">spec</span>:
+  <span class="key">failurePolicy</span>: <span class="val">Fail</span>  <span class="cm"># Fail = block nếu có lỗi đánh giá | Ignore = cho qua</span>
+
+  <span class="key">matchConstraints</span>:      <span class="cm"># Policy này áp dụng cho request nào?</span>
+    <span class="key">resourceRules</span>:
+    - <span class="key">apiGroups</span>:   [<span class="str">""</span>]
+      <span class="key">apiVersions</span>: [<span class="str">"v1"</span>]
+      <span class="key">operations</span>:  [<span class="str">"CREATE"</span>, <span class="str">"UPDATE"</span>]
+      <span class="key">resources</span>:   [<span class="str">"pods"</span>]
+
+  <span class="key">validations</span>:           <span class="cm"># Danh sách điều kiện — PHẢI tất cả đều đúng</span>
+  - <span class="key">expression</span>: <span class="str">"has(object.metadata.labels) && 'env' in object.metadata.labels"</span>
+    <span class="key">message</span>: <span class="str">"Pod phải có label 'env' (ví dụ: env: prod)"</span>
+
+  - <span class="key">expression</span>: <span class="str">"object.metadata.labels['env'] in ['prod', 'staging', 'dev']"</span>
+    <span class="key">message</span>: <span class="str">"Giá trị label 'env' phải là: prod, staging, hoặc dev"</span>
+
+<span class="cm">---</span>
+<span class="cm"># Binding: gắn policy với namespace cụ thể</span>
+<span class="key">apiVersion</span>: <span class="val">admissionregistration.k8s.io/v1</span>
+<span class="key">kind</span>: <span class="val">ValidatingAdmissionPolicyBinding</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">require-env-label-binding</span>
+<span class="key">spec</span>:
+  <span class="key">policyName</span>: <span class="val">require-env-label</span>
+  <span class="key">validationActions</span>: [<span class="val">Deny</span>]   <span class="cm"># [Deny] | [Audit] | [Warn] | [Audit, Warn]</span>
+  <span class="key">matchResources</span>:
+    <span class="key">namespaceSelector</span>:
+      <span class="key">matchLabels</span>:
+        <span class="key">env</span>: <span class="val">production</span>          <span class="cm"># áp dụng cho namespace có label này</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker amber">has(object.metadata.labels)</div>Kiểm tra field có tồn tại không trước khi truy cập — tránh lỗi nil pointer. Luôn check <code>has()</code> trước khi dùng <code>in</code>.</div>
+      <div class="ann-item"><div class="ann-marker amber">validationActions: [Warn]</div>Trả về warning nhưng không block — tương đương audit mode của Gatekeeper. Rất hữu ích để test policy không làm gián đoạn cluster.</div>
+    </div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">⚖️</span> So sánh 3 phương án</h3>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Tiêu chí</th><th>OPA Gatekeeper</th><th>Kyverno</th><th>VAP (CEL Native)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Ngôn ngữ policy</td>
+        <td>Rego (học nhiều)</td>
+        <td>YAML (dễ nhất)</td>
+        <td>CEL (trung bình)</td>
+      </tr>
+      <tr>
+        <td>Cần deploy thêm</td>
+        <td><span class="cross">✗</span> Cần controller</td>
+        <td><span class="cross">✗</span> Cần controller</td>
+        <td><span class="check">✓</span> Không cần gì</td>
+      </tr>
+      <tr>
+        <td>Mutating (sửa object)</td>
+        <td><span class="cross">✗</span> Không hỗ trợ</td>
+        <td><span class="check">✓</span> Có</td>
+        <td><span class="cross">✗</span> Không hỗ trợ</td>
+      </tr>
+      <tr>
+        <td>Audit / Warn mode</td>
+        <td><span class="check">✓</span> Có</td>
+        <td><span class="check">✓</span> Có</td>
+        <td><span class="check">✓</span> Có (Warn action)</td>
+      </tr>
+      <tr>
+        <td>Độ phức tạp policy</td>
+        <td>Không giới hạn (Turing complete)</td>
+        <td>Cao (YAML lồng nhau)</td>
+        <td>Vừa phải (CEL limited)</td>
+      </tr>
+      <tr>
+        <td>Phiên bản K8s yêu cầu</td>
+        <td>Mọi phiên bản</td>
+        <td>Mọi phiên bản</td>
+        <td>1.30+ (GA)</td>
+      </tr>
+      <tr>
+        <td>Phù hợp khi nào</td>
+        <td>Policy phức tạp, multi-cluster, enterprise</td>
+        <td>Team nhỏ, cần onboard nhanh, cần mutation</td>
+        <td>K8s mới, muốn đơn giản, không muốn ops thêm controller</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     5. SECRETS ROTATION
+════════════════════════════════════════════ -->
+<section class="section" id="secrets">
+  <div class="section-label">// 05 · Quản lý Credential</div>
+  <h2>Secrets Rotation — Credential không bao giờ cứng</h2>
+  <p class="section-subtitle">
+    K8s Secret mặc định chỉ là base64 — không phải mã hóa thật sự. Ai có quyền đọc etcd hoặc file YAML đều lấy được. Phần này dạy cách quản lý credential đúng chuẩn production: không lưu trong code, tự động rotate, đồng bộ từ vault bên ngoài.
+  </p>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <strong>Vấn đề với K8s Secret mặc định</strong>
+      Khi bạn chạy <code>kubectl get secret my-db-password -o yaml</code>, bạn thấy <code>data: password: cGFzc3dvcmQ=</code>. Thử <code>echo "cGFzc3dvcmQ=" | base64 -d</code> — ra ngay <code>password</code>. Base64 không phải encryption! Bất kỳ ai có quyền đọc secret trong K8s đều thấy plaintext.
+    </div>
+  </div>
+
+  <div class="explain">
+    <strong>// Giải pháp: Không lưu secret trong cluster — lấy từ ngoài vào</strong>
+    <p>Thay vì tạo Secret thủ công, hệ thống tốt sẽ: lưu credential ở một vault chuyên dụng (AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager), rồi có một controller trong cluster tự động kéo về và tạo Secret native.</p>
+    <p>Khi cần rotate (đổi mật khẩu), bạn chỉ cần đổi trên vault — controller tự cập nhật Secret trong cluster, không cần can thiệp thủ công.</p>
+    <div class="analogy">Vault như két sắt ngân hàng. K8s Secret là bản sao ngắn hạn trong ví bạn. Controller tự động đồng bộ từ két sang ví theo định kỳ. Nếu két đổi combo → ví tự cập nhật.</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     6. EXTERNAL SECRETS OPERATOR
+════════════════════════════════════════════ -->
+<section class="section" id="eso">
+  <div class="section-label">// 06 · External Secrets Operator</div>
+  <h2>ESO — Tự động đồng bộ từ AWS / Vault / GCP</h2>
+  <p class="section-subtitle">
+    External Secrets Operator (ESO) là Kubernetes controller nhận biết các CRD đặc biệt và tự động kéo secret từ cloud provider về, tạo thành K8s Secret native mà ứng dụng có thể dùng bình thường.
+    <div class="links-row">
+      <a class="source-link" href="https://external-secrets.io/latest/" target="_blank">↗ external-secrets.io</a>
+      <a class="source-link" href="https://github.com/bitnami-labs/sealed-secrets" target="_blank">↗ sealed-secrets (alternative)</a>
+    </div>
+  </p>
+
+  <div class="arch-box">
+    <div class="arch-title">// Kiến trúc ESO: 3 CRD cốt lõi</div>
+    <div class="arch-layer">
+      <div class="arch-node purple">AWS Secrets Manager<br><span style="font-size:10px;color:#94a3b8">prod/documentdb/uri</span></div>
+      <div class="arch-arrow">↑ IRSA/OIDC</div>
+      <div class="arch-node blue">SecretStore<br><span style="font-size:10px;color:#94a3b8">Khai báo cách xác thực<br>với provider nào</span></div>
+    </div>
+    <div class="arch-layer" style="margin-top: 8px;">
+      <div class="arch-node cyan">ExternalSecret<br><span style="font-size:10px;color:#94a3b8">Khai báo lấy secret nào<br>refreshInterval: 1m</span></div>
+      <div class="arch-arrow">→ ESO Controller →</div>
+      <div class="arch-node green">K8s Secret (native)<br><span style="font-size:10px;color:#94a3b8">App đọc bình thường<br>env/volume mount</span></div>
+    </div>
+    <div class="arch-explain">
+      <div class="arch-explain-item"><strong>SecretStore</strong>Khai báo "nguồn" — provider nào (AWS, GCP, Vault...) và xác thực bằng cách gì (IRSA, service account key...). Có thể dùng chung cho nhiều ExternalSecret.</div>
+      <div class="arch-explain-item"><strong>ClusterSecretStore</strong>Giống SecretStore nhưng cluster-scoped — dùng được từ mọi namespace. Phù hợp khi nhiều team share cùng một vault.</div>
+      <div class="arch-explain-item"><strong>ExternalSecret</strong>Khai báo cụ thể: lấy key nào, từ SecretStore nào, refresh bao lâu 1 lần, tạo K8s Secret tên gì.</div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 1 — Cài ESO bằng Helm (hoặc Terraform)</span>
+      <span class="code-header-lang">bash</span>
+    </div>
+    <div class="code-block">
+      <pre><span class="cm"># Cách 1: Helm trực tiếp</span>
+helm repo add external-secrets https://charts.external-secrets.io
+helm install external-secrets \
+  external-secrets/external-secrets \
+  -n external-secrets \
+  --create-namespace \
+  --set installCRDs=true
+
+<span class="cm"># Cách 2: Terraform (IaC-first, khuyên dùng)</span>
+<span class="cm"># resource "helm_release" "eso" {</span>
+<span class="cm">#   name       = "external-secrets"</span>
+<span class="cm">#   repository = "https://charts.external-secrets.io"</span>
+<span class="cm">#   chart      = "external-secrets"</span>
+<span class="cm">#   namespace  = "external-secrets"</span>
+<span class="cm">#   set { name = "installCRDs"; value = "true" }</span>
+<span class="cm"># }</span>
+
+<span class="cm"># Kiểm tra ESO đã sẵn sàng</span>
+kubectl get pods -n external-secrets
+<span class="cm"># external-secrets-xxxxx   1/1   Running   0   2m</span></pre>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 2 — SecretStore: cấu hình kết nối AWS</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block">
+      <pre><span class="key">apiVersion</span>: <span class="val">external-secrets.io/v1beta1</span>
+<span class="key">kind</span>: <span class="val">SecretStore</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">aws-secrets-manager</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+<span class="key">spec</span>:
+  <span class="key">provider</span>:
+    <span class="key">aws</span>:
+      <span class="key">service</span>: <span class="val">SecretsManager</span>
+      <span class="key">region</span>: <span class="val">ap-southeast-1</span>    <span class="cm"># Singapore region</span>
+      <span class="key">auth</span>:
+        <span class="key">jwt</span>:
+          <span class="key">serviceAccountRef</span>:
+            <span class="key">name</span>: <span class="val">eso-sa</span>         <span class="cm"># ServiceAccount có annotation IRSA</span>
+
+<span class="cm">---</span>
+<span class="cm"># ServiceAccount với IRSA annotation</span>
+<span class="key">apiVersion</span>: <span class="val">v1</span>
+<span class="key">kind</span>: <span class="val">ServiceAccount</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">eso-sa</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+  <span class="key">annotations</span>:
+    <span class="key">eks.amazonaws.com/role-arn</span>: <span class="val">arn:aws:iam::123456:role/eso-role</span>
+    <span class="cm"># Role này cần có policy: secretsmanager:GetSecretValue</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker">IRSA</div>IAM Roles for Service Accounts — cách an toàn nhất để K8s Pod xác thực với AWS. Không cần lưu AWS Access Key/Secret Key trong cluster. Pod tự lấy token từ EKS OIDC provider.</div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Bước 3 — ExternalSecret: khai báo secret cần đồng bộ</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block green">
+      <pre><span class="key">apiVersion</span>: <span class="val">external-secrets.io/v1beta1</span>
+<span class="key">kind</span>: <span class="val">ExternalSecret</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">documentdb-uri</span>
+  <span class="key">namespace</span>: <span class="val">backend</span>
+<span class="key">spec</span>:
+  <span class="key">refreshInterval</span>: <span class="val">1m</span>        <span class="cm"># ← ESO sẽ sync lại mỗi 60 giây</span>
+
+  <span class="key">secretStoreRef</span>:
+    <span class="key">name</span>: <span class="val">aws-secrets-manager</span>  <span class="cm"># SecretStore đã tạo ở trên</span>
+    <span class="key">kind</span>: <span class="val">SecretStore</span>
+
+  <span class="key">target</span>:
+    <span class="key">name</span>: <span class="val">documentdb-secret</span>    <span class="cm"># tên K8s Secret sẽ được tạo/cập nhật</span>
+    <span class="key">creationPolicy</span>: <span class="val">Owner</span>     <span class="cm"># ESO "sở hữu" Secret này, xóa ES → xóa Secret</span>
+
+  <span class="key">data</span>:
+  - <span class="key">secretKey</span>: <span class="val">MONGODB_URI</span>    <span class="cm"># tên key trong K8s Secret</span>
+    <span class="key">remoteRef</span>:
+      <span class="key">key</span>: <span class="val">prod/documentdb/uri</span> <span class="cm"># đường dẫn trên AWS Secrets Manager</span>
+  - <span class="key">secretKey</span>: <span class="val">DB_PASSWORD</span>
+    <span class="key">remoteRef</span>:
+      <span class="key">key</span>: <span class="val">prod/documentdb/password</span>
+      <span class="key">property</span>: <span class="val">password</span>       <span class="cm"># nếu secret là JSON, lấy field cụ thể</span></pre>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="terminal-title">terminal — test rotation live</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-comment"># Xem trạng thái ExternalSecret</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl get externalsecret -n backend</span></div>
+      <div><span class="t-out">NAME             STORE                  REFRESH INTERVAL   STATUS   READY</span></div>
+      <div><span class="t-out">documentdb-uri   aws-secrets-manager    1m                 Valid    True</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Đọc giá trị hiện tại của secret</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl get secret documentdb-secret -n backend \</span></div>
+      <div><span class="t-cmd">    -o jsonpath='{.data.MONGODB_URI}' | base64 -d</span></div>
+      <div><span class="t-out">mongodb://user:OldPassword123@docdb-cluster.ap-southeast-1.docdb.amazonaws.com:27017</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># === Bây giờ lên AWS đổi password trên Secrets Manager ===</span></div>
+      <div><span class="t-comment"># aws secretsmanager put-secret-value --secret-id prod/documentdb/uri \</span></div>
+      <div><span class="t-comment">#   --secret-string "mongodb://user:NewSecurePass456@..."</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-comment"># Đợi &lt;60 giây, đọc lại...</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl get secret documentdb-secret -n backend \</span></div>
+      <div><span class="t-cmd">    -o jsonpath='{.data.MONGODB_URI}' | base64 -d</span></div>
+      <div><span class="t-ok">mongodb://user:NewSecurePass456@docdb-cluster.ap-southeast-1.docdb.amazonaws.com:27017</span></div>
+      <div><span class="t-ok">✓ Password đã được cập nhật tự động — không cần can thiệp thủ công!</span></div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">🔐</div>
+    <div class="callout-body">
+      <strong>Sealed Secrets — Giải pháp offline (không cần cloud)</strong>
+      Nếu không có cloud provider, <strong>Sealed Secrets</strong> (Bitnami) cho phép encrypt Secret bằng public key của controller, commit file <code>.SealedSecret</code> lên Git an toàn. Chỉ controller trong cluster mới decrypt được. Nhược điểm: không tự rotate — cần update thủ công khi credential thay đổi.
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     7. SUPPLY CHAIN SECURITY
+════════════════════════════════════════════ -->
+<section class="section" id="supply">
+  <div class="section-label">// 07 · Software Supply Chain</div>
+  <h2>Supply Chain Security — Ai build image bạn đang chạy?</h2>
+  <p class="section-subtitle">
+    Bảo mật không chỉ là bảo vệ cluster đang chạy — mà còn đảm bảo <em>code và image bạn deploy vào cluster là đúng thứ bạn muốn</em>. Một image bị chèn mã độc hoặc có lỗ hổng nghiêm trọng có thể phá toàn bộ nỗ lực bảo mật khác.
+  </p>
+
+  <div class="explain">
+    <strong>// Supply Chain Attack là gì?</strong>
+    <p>Thay vì tấn công trực tiếp vào bạn, hacker tấn công vào một mắt xích trong chuỗi sản xuất phần mềm: thư viện bạn dùng (<em>log4shell</em>), pipeline CI/CD của bạn, hoặc registry lưu image. Sau đó, khi bạn "vô tình" deploy thứ đã bị nhiễm độc vào production.</p>
+    <div class="analogy">Như thực phẩm bị nhiễm khuẩn không phải tại nhà bạn mà tại nhà máy. Bạn mua về thấy bao bì nguyên vẹn, không biết bên trong đã bị. Supply Chain Security giống như kiểm định chất lượng từng khâu trong chuỗi sản xuất.</div>
+  </div>
+
+  <div class="arch-box">
+    <div class="arch-title">// Pipeline bảo mật đầy đủ</div>
+    <div class="arch-layer">
+      <div class="arch-node blue">① Code<br><span style="font-size:10px;color:#94a3b8">Signed commits<br>Code review</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node">② CI Build<br><span style="font-size:10px;color:#94a3b8">SBOM generation<br>Hermetic build</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node amber">③ Trivy Scan<br><span style="font-size:10px;color:#94a3b8">CVE check<br>Exit 1 nếu CRITICAL</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node purple">④ Cosign Sign<br><span style="font-size:10px;color:#94a3b8">Ký số image<br>Key-based / Keyless</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node cyan">⑤ Registry<br><span style="font-size:10px;color:#94a3b8">ECR / GCR / GHCR</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node red">⑥ Admission<br><span style="font-size:10px;color:#94a3b8">Verify signature<br>Kyverno policy</span></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node green">✓ Cluster</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     8. TRIVY
+════════════════════════════════════════════ -->
+<section class="section" id="trivy">
+  <div class="section-label">// 08 · CVE Scanner</div>
+  <h2>Trivy — Quét lỗ hổng bảo mật trong Image</h2>
+  <p class="section-subtitle">
+    Trivy (Aqua Security) là scanner đa năng: quét CVE trong OS packages, thư viện ngôn ngữ (npm, pip, go modules), misconfiguration trong Dockerfile/K8s YAML, và secrets lộ trong code. Tích hợp dễ vào mọi CI pipeline.
+    <div class="links-row">
+      <a class="source-link" href="https://aquasecurity.github.io/trivy" target="_blank">↗ aquasecurity.github.io/trivy</a>
+    </div>
+  </p>
+
+  <div class="explain">
+    <strong>// CVE là gì và tại sao cần quét?</strong>
+    <p>CVE (Common Vulnerabilities and Exposures) là cơ sở dữ liệu công khai liệt kê các lỗ hổng bảo mật đã biết trong phần mềm. Khi bạn dùng <code>ubuntu:22.04</code> làm base image, rất có thể có một số package trong đó đã có CVE được phát hiện.</p>
+    <p>Trivy đối chiếu danh sách package trong image với database CVE và báo cáo những lỗ hổng nào tồn tại, mức độ nghiêm trọng (LOW/MEDIUM/HIGH/CRITICAL), và phiên bản fix là gì.</p>
+    <div class="analogy">Như kiểm tra danh sách thành phần thực phẩm với danh sách chất cấm. Trivy biết "openssl 3.0.1 có lỗ hổng CVE-2024-XXXX, cần nâng lên 3.0.2".</div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🔴</div>
+      <h4>CRITICAL</h4>
+      <p>Lỗ hổng có thể bị khai thác từ xa mà không cần xác thực, dẫn đến chiếm quyền kiểm soát hệ thống. Phải fix trước khi deploy. CI pipeline <strong>phải fail</strong> nếu có.</p>
+      <div class="card-note">⚠️ Block deploy ngay lập tức</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟠</div>
+      <h4>HIGH</h4>
+      <p>Lỗ hổng nghiêm trọng nhưng có điều kiện khai thác. Cũng nên block CI pipeline — <code>--severity HIGH,CRITICAL</code></p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟡</div>
+      <h4>MEDIUM / LOW</h4>
+      <p>Nên fix theo thời gian nhưng không block deploy ngay. Dùng <code>--ignore-unfixed</code> để bỏ qua những lỗ hổng chưa có bản vá.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Quét image local — xem báo cáo đầy đủ</span>
+      <span class="code-header-lang">bash</span>
+    </div>
+    <div class="code-block red">
+      <pre><span class="cm"># Quét cơ bản — hiện tất cả mức độ</span>
+trivy image myapp:latest
+
+<span class="cm"># Chỉ quan tâm HIGH và CRITICAL, fail nếu phát hiện</span>
+trivy image \
+  --severity HIGH,CRITICAL \
+  --exit-code 1 \
+  myapp:latest
+
+<span class="cm"># Bỏ qua những lỗ hổng chưa có bản vá (giảm noise)</span>
+trivy image \
+  --severity HIGH,CRITICAL \
+  --exit-code 1 \
+  --ignore-unfixed \
+  myapp:latest
+
+<span class="cm"># Quét secret lộ trong source code (thêm bước trong CI)</span>
+trivy fs --security-checks secret .
+
+<span class="cm"># Xuất báo cáo ra file JSON để lưu trữ</span>
+trivy image --format json --output trivy-report.json myapp:latest</pre>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="terminal-title">terminal — output của trivy</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">$</span> <span class="t-cmd">trivy image --severity HIGH,CRITICAL --exit-code 1 myapp:v2.1.0</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-warn">2024-06-15T10:00:00Z INFO Detected OS: ubuntu 22.04</span></div>
+      <div><span class="t-warn">2024-06-15T10:00:01Z INFO [ubuntu] Detecting Ubuntu vulnerabilities...</span></div>
+      <div><span class="t-warn">2024-06-15T10:00:02Z INFO Number of language-specific files: 2</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-out">myapp:v2.1.0 (ubuntu 22.04)</span></div>
+      <div><span class="t-out">================================</span></div>
+      <div><span class="t-out">Total: 2 (HIGH: 1, CRITICAL: 1)</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-err">Library     │ Vulnerability   │ Severity │ Installed │ Fixed   │ Title</span></div>
+      <div><span class="t-err">────────────────────────────────────────────────────────────────────────</span></div>
+      <div><span class="t-err">libssl3     │ CVE-2024-0727   │ CRITICAL │ 3.0.1     │ 3.0.2   │ OpenSSL: denial of service</span></div>
+      <div><span class="t-err">libc6       │ CVE-2024-2961   │ HIGH     │ 2.35-1    │ 2.35-2  │ glibc: buffer overflow</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-err">SOLUTION: Update Dockerfile base image, then rebuild:</span></div>
+      <div><span class="t-err">  FROM ubuntu:22.04 → RUN apt-get upgrade -y</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-err">exit status 1  ← CI pipeline dừng ở đây, không deploy lên staging</span></div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Tích hợp vào GitHub Actions CI</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block red">
+      <pre><span class="cm"># .github/workflows/security.yml</span>
+<span class="key">name</span>: <span class="val">Security Scan</span>
+<span class="key">on</span>: [<span class="val">push</span>, <span class="val">pull_request</span>]
+
+<span class="key">jobs</span>:
+  <span class="key">trivy-scan</span>:
+    <span class="key">runs-on</span>: <span class="val">ubuntu-latest</span>
+    <span class="key">steps</span>:
+    - <span class="key">uses</span>: <span class="val">actions/checkout@v3</span>
+
+    - <span class="key">name</span>: <span class="val">Build Docker image</span>
+      <span class="key">run</span>: <span class="val">docker build -t myapp:${{ github.sha }} .</span>
+
+    - <span class="key">name</span>: <span class="val">Scan với Trivy — block nếu có CRITICAL/HIGH</span>
+      <span class="key">uses</span>: <span class="val">aquasecurity/trivy-action@master</span>
+      <span class="key">with</span>:
+        <span class="key">image-ref</span>: <span class="val">myapp:${{ github.sha }}</span>
+        <span class="key">format</span>: <span class="val">table</span>
+        <span class="key">exit-code</span>: <span class="str">'1'</span>          <span class="cm"># fail pipeline = không merge PR</span>
+        <span class="key">ignore-unfixed</span>: <span class="val">true</span>   <span class="cm"># bỏ qua CVE chưa có fix</span>
+        <span class="key">severity</span>: <span class="val">CRITICAL,HIGH</span>
+
+    - <span class="key">name</span>: <span class="val">Push image (chỉ chạy nếu scan pass)</span>
+      <span class="key">run</span>: <span class="val">docker push ghcr.io/myorg/myapp:${{ github.sha }}</span></pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     9. COSIGN
+════════════════════════════════════════════ -->
+<section class="section" id="cosign">
+  <div class="section-label">// 09 · Image Signing · Sigstore</div>
+  <h2>Cosign — Ký số image để đảm bảo tính toàn vẹn</h2>
+  <p class="section-subtitle">
+    Trivy đảm bảo image không có CVE. Cosign đảm bảo image bạn deploy là <em>đúng image</em> mà team bạn đã build — không bị ai swap hoặc giả mạo. Cosign là tool ký số của dự án Sigstore (Google, Red Hat, Purdue University).
+    <div class="links-row">
+      <a class="source-link" href="https://docs.sigstore.dev/cosign/overview" target="_blank">↗ docs.sigstore.dev</a>
+      <a class="source-link" href="https://kyverno.io/policies/?policytypes=verifyImages" target="_blank">↗ kyverno verifyImages</a>
+    </div>
+  </p>
+
+  <div class="explain">
+    <strong>// Tại sao chỉ quét CVE chưa đủ?</strong>
+    <p>Hãy tưởng tượng: image bạn build qua CI đã sạch sẽ, scan pass. Nhưng sau khi push lên registry, hacker vào được registry và upload một image khác cùng tag <code>:latest</code>. Khi bạn deploy, bạn pull về image của hacker.</p>
+    <p>Cosign giải quyết điều này: sau khi build, CI ký số image bằng private key. Khi deploy, cluster kiểm tra chữ ký bằng public key — nếu image bị thay thế, chữ ký sẽ không khớp và bị từ chối.</p>
+    <div class="analogy">Như tem niêm phong trên hộp thuốc. Bạn không chỉ cần thuốc đúng loại (Trivy scan) mà còn cần tem nguyên vẹn (Cosign signature) để chắc chắn không ai mở hộp sau khi xuất xưởng.</div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">🔑</span> Key-based vs Keyless — Chọn cái nào?</h3>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🗝️</div>
+      <h4>Key-based Signing</h4>
+      <p>Tạo cặp public/private key bằng <code>cosign generate-key-pair</code>. Private key dùng để ký (lưu trong CI secrets). Public key dùng để verify (lưu trong cluster policy).</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--text-muted)"><strong>Ưu:</strong> Kiểm soát hoàn toàn. <strong>Nhược:</strong> Phải tự quản lý key rotation.</p>
+      <div class="card-source">cosign.key (private) + cosign.pub (public)</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h4>Keyless Signing (OIDC)</h4>
+      <p>Không tạo key. Cosign dùng identity của CI (GitHub Actions JWT, Google Workload Identity...) để lấy <em>short-lived certificate</em> từ <strong>Fulcio CA</strong>. Hoạt động được log vào <strong>Rekor</strong> — public transparency log.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--text-muted)"><strong>Ưu:</strong> Không cần quản lý key. <strong>Nhược:</strong> Cần OIDC provider.</p>
+      <div class="card-source">Fulcio CA · Rekor transparency log · OIDC</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🛡️</div>
+      <h4>Kyverno verifyImages</h4>
+      <p>Policy chạy tại Admission Webhook — mỗi khi deploy Pod, Kyverno kiểm tra image có chữ ký hợp lệ không. Image từ DockerHub hay bất kỳ nguồn lạ nào sẽ bị từ chối ngay.</p>
+      <div class="card-source">ClusterPolicy · verifyImages · attestors</div>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="terminal-title">terminal — key-based workflow đầy đủ</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-section">=== 1. Tạo key pair (chạy một lần) ===</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">cosign generate-key-pair</span></div>
+      <div><span class="t-out">Enter password for private key:  [nhập password]</span></div>
+      <div><span class="t-ok">Private key written to cosign.key</span></div>
+      <div><span class="t-ok">Public key written to cosign.pub</span></div>
+      <div><span class="t-comment"># → Lưu cosign.key vào GitHub/GitLab CI Secrets</span></div>
+      <div><span class="t-comment"># → cosign.pub commit vào repo hoặc lưu vào cluster policy</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-section">=== 2. Ký image sau khi build (trong CI) ===</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">cosign sign --key cosign.key ghcr.io/myorg/myapp:v1.2.3</span></div>
+      <div><span class="t-out">Enter password for private key:</span></div>
+      <div><span class="t-ok">Pushing signature to: ghcr.io/myorg/myapp:sha256-abc123def456.sig</span></div>
+      <div><span class="t-comment"># Chữ ký được lưu trong registry cùng với image (OCI artifact)</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-section">=== 3. Verify chữ ký ===</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">cosign verify --key cosign.pub ghcr.io/myorg/myapp:v1.2.3</span></div>
+      <div><span class="t-ok">Verification for ghcr.io/myorg/myapp:v1.2.3 --</span></div>
+      <div><span class="t-ok">The following checks were performed on each of these signatures:</span></div>
+      <div><span class="t-ok">  - The cosign claims were validated</span></div>
+      <div><span class="t-ok">  - The signatures were verified against the specified public key</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-section">=== 4. Thử deploy image không có chữ ký ===</span></div>
+      <div><span class="t-prompt">$</span> <span class="t-cmd">kubectl apply -f deploy-nginx-latest.yaml</span></div>
+      <div><span class="t-err">Error from server: admission webhook "mutate.kyverno.svc" denied the request:</span></div>
+      <div><span class="t-err">  resource Pod/.../nginx-pod was blocked due to the following policies</span></div>
+      <div><span class="t-err">  verify-image-signature: check-image: image nginx:latest</span></div>
+      <div><span class="t-err">  failed signature verification: no matching signatures</span></div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Kyverno Policy — Chặn image không có chữ ký</span>
+      <span class="code-header-lang">yaml</span>
+    </div>
+    <div class="code-block purple">
+      <pre><span class="key">apiVersion</span>: <span class="val">kyverno.io/v1</span>
+<span class="key">kind</span>: <span class="val">ClusterPolicy</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="val">verify-image-signature</span>
+<span class="key">spec</span>:
+  <span class="key">validationFailureAction</span>: <span class="val">Enforce</span>   <span class="cm"># Audit → chỉ log | Enforce → block</span>
+  <span class="key">background</span>: <span class="val">false</span>               <span class="cm"># Không kiểm tra Pod đã tồn tại</span>
+  <span class="key">rules</span>:
+  - <span class="key">name</span>: <span class="val">check-image-signature</span>
+    <span class="key">match</span>:
+      <span class="key">any</span>:
+      - <span class="key">resources</span>:
+          <span class="key">kinds</span>: [<span class="val">Pod</span>]
+          <span class="key">namespaces</span>: [<span class="val">backend</span>, <span class="val">frontend</span>]  <span class="cm"># áp dụng cho 2 namespace</span>
+    <span class="key">verifyImages</span>:
+    - <span class="key">imageReferences</span>:
+      - <span class="str">"ghcr.io/myorg/*"</span>      <span class="cm"># chỉ kiểm tra image từ registry của team</span>
+      <span class="cm"># image từ nguồn khác (nginx:latest, redis...) sẽ bị block vì không match rule nào</span>
+      <span class="key">attestors</span>:
+      - <span class="key">entries</span>:
+        - <span class="key">keys</span>:
+            <span class="key">publicKeys</span>: |-
+              <span class="val">-----BEGIN PUBLIC KEY-----</span>
+              <span class="val">MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE... (nội dung cosign.pub)</span>
+              <span class="val">-----END PUBLIC KEY-----</span></pre>
+    </div>
+    <div class="code-annotations">
+      <div class="ann-item"><div class="ann-marker purple">imageReferences: ["ghcr.io/myorg/*"]</div>Wildcard — kiểm tra tất cả image từ organization của bạn. Image từ nguồn khác (DockerHub <code>nginx:latest</code>, <code>redis:alpine</code>) nếu không có rule match và bạn có policy mặc định deny all → cũng bị chặn.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     10. SLSA
+════════════════════════════════════════════ -->
+<section class="section" id="slsa">
+  <div class="section-label">// 10 · Framework · Đánh giá mức độ bảo mật</div>
+  <h2>SLSA — Khung đo lường bảo mật chuỗi cung ứng</h2>
+  <p class="section-subtitle">
+    SLSA (đọc là "salsa") — Supply-chain Levels for Software Artifacts. Đây là framework cung cấp ngôn ngữ chung để đánh giá "pipeline của bạn bảo mật đến mức nào" — từ Level 0 (không làm gì) đến Level 3 (hardened hoàn toàn).
+    <div class="links-row">
+      <a class="source-link" href="https://slsa.dev" target="_blank">↗ slsa.dev</a>
+      <a class="source-link" href="https://slsa.dev/spec/v1.2/" target="_blank">↗ spec v1.2</a>
+    </div>
+  </p>
+
+  <div class="explain">
+    <strong>// Tại sao cần một framework như SLSA?</strong>
+    <p>Trước khi có SLSA, mỗi công ty có định nghĩa riêng về "build pipeline bảo mật". Không có cách nào so sánh hay kiểm chứng. SLSA tạo ra 4 cấp độ cụ thể với checklist rõ ràng — giống như ISO hay SOC2 nhưng chuyên cho software supply chain.</p>
+    <p>SLSA không chỉ dành cho bạn — nó cũng giúp bạn đánh giá dependencies. "Library A đạt SLSA Level 2" là thông tin có giá trị khi quyết định có dùng không.</p>
+    <div class="analogy">Như sao xếp hạng khách sạn. 1 sao đến 5 sao có tiêu chuẩn rõ ràng, ai cũng hiểu. SLSA Level 0-3 tương tự — giúp nói chuyện về bảo mật pipeline mà không cần giải thích từ đầu.</div>
+  </div>
+
+  <div class="level-list">
+    <div class="level-item">
+      <div class="level-left">
+        <div class="level-label">Level 0</div>
+        <div class="level-sub">Baseline</div>
+      </div>
+      <div class="level-right">
+        <div class="level-bar-bg">
+          <div class="level-bar" style="width:8%; background: #ef4444;"></div>
+        </div>
+        <div class="level-desc">Không có bảo đảm nào. Build thủ công trên máy local, không có log, không có tài liệu. Hầu hết project cá nhân/hobby bắt đầu ở đây.</div>
+        <div class="level-tags"><span class="level-tag">build thủ công</span><span class="level-tag">không có provenance</span></div>
+      </div>
+    </div>
+    <div class="level-item">
+      <div class="level-left">
+        <div class="level-label">Level 1</div>
+        <div class="level-sub">Documented</div>
+      </div>
+      <div class="level-right">
+        <div class="level-bar-bg">
+          <div class="level-bar" style="width:35%; background: #f59e0b;"></div>
+        </div>
+        <div class="level-desc">Build process được tài liệu hóa. Có provenance — tài liệu mô tả "ai build gì từ source nào". Không cần verified nhưng phải tồn tại. <em>Đủ để phát hiện lỗi vô ý.</em></div>
+        <div class="level-tags"><span class="level-tag">provenance tồn tại</span><span class="level-tag">build script có</span></div>
+      </div>
+    </div>
+    <div class="level-item">
+      <div class="level-left">
+        <div class="level-label">Level 2</div>
+        <div class="level-sub">Verified</div>
+      </div>
+      <div class="level-right">
+        <div class="level-bar-bg">
+          <div class="level-bar" style="width:65%; background: #3b82f6;"></div>
+        </div>
+        <div class="level-desc">Build chạy trên hosted CI platform (GitHub Actions, GitLab CI...). Provenance được <em>ký số</em> bởi CI platform. Ngăn chặn được hầu hết tấn công từ bên ngoài.</div>
+        <div class="level-tags"><span class="level-tag">GitHub Actions</span><span class="level-tag">signed provenance</span><span class="level-tag">Cosign</span></div>
+      </div>
+    </div>
+    <div class="level-item">
+      <div class="level-left">
+        <div class="level-label">Level 3</div>
+        <div class="level-sub">Hardened</div>
+      </div>
+      <div class="level-right">
+        <div class="level-bar-bg">
+          <div class="level-bar" style="width:100%; background: #10b981;"></div>
+        </div>
+        <div class="level-desc">Build environment được <em>hardened</em>: hermetic (không có network access trong quá trình build), reproducible (cùng input → cùng output), và không thể bị compromise dù bởi insider. Mức của Google, Microsoft, CNCF core projects.</div>
+        <div class="level-tags"><span class="level-tag">hermetic build</span><span class="level-tag">reproducible</span><span class="level-tag">isolated environment</span><span class="level-tag">insider threat protection</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub-heading"><span class="sh-icon">🎯</span> Lộ trình thực tế cho startup/team nhỏ</h3>
+  <p class="sub-heading-desc">Không cần đạt Level 3 ngay. Đây là lộ trình tăng dần SLSA level mà hầu hết team có thể theo.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">L0→L1</div>
+      <div class="step-content">
+        <h5>Viết Dockerfile + CI pipeline</h5>
+        <p>Chuyển từ build tay sang CI tự động. Dùng GitHub Actions với <code>docker build</code> và <code>docker push</code>. Document lại process trong README. Đây là bước đầu tiên và dễ nhất.</p>
+        <div class="step-cmd">git push → GitHub Actions tự động build và push image</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">L1→L2</div>
+      <div class="step-content">
+        <h5>Thêm Trivy scan + Cosign signing</h5>
+        <p>Thêm bước Trivy scan trước khi push. Sau khi push, ký image bằng Cosign. Dùng GitHub Actions OIDC để ký keyless — không cần quản lý key. Provenance có chữ ký → SLSA Level 2.</p>
+        <div class="step-cmd">trivy scan → cosign sign --keyless → ghcr.io/myorg/myapp:sha256</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">L2→L3</div>
+      <div class="step-content">
+        <h5>Hermetic builds + SBOM + Pin dependencies</h5>
+        <p>Pin tất cả dependencies bằng hash thay vì version. Generate SBOM (Software Bill of Materials). Dùng build environment không có network access. Sử dụng digest pinning thay vì tag (<code>nginx@sha256:abc...</code>).</p>
+        <div class="step-cmd">FROM ubuntu@sha256:abc123 (thay vì ubuntu:22.04)</div>
+      </div>
+    </div>
+  </div>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th>Lớp bảo vệ</th><th>Mối đe dọa ngăn chặn</th><th>Tool thực tế</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Source</td>
+        <td>Chèn mã độc vào repo, PR độc hại</td>
+        <td>Branch protection, signed commits, code review bắt buộc</td>
+      </tr>
+      <tr>
+        <td>Build</td>
+        <td>CI bị compromise, dependency confusion</td>
+        <td>Hermetic builds, SBOM generation, Trivy scan, private registry proxy</td>
+      </tr>
+      <tr>
+        <td>Publish</td>
+        <td>Artifact bị swap sau khi build xong</td>
+        <td>Cosign signing, digest pinning (<code>@sha256:...</code>)</td>
+      </tr>
+      <tr>
+        <td>Deploy</td>
+        <td>Deploy image không rõ nguồn gốc, image lạ từ DockerHub</td>
+        <td>Kyverno verifyImages, Gatekeeper imagePolicy, OPA Conftest</td>
+      </tr>
+      <tr>
+        <td>Runtime</td>
+        <td>Container escape, privilege escalation</td>
+        <td>Seccomp profiles, AppArmor, Falco runtime detection</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════
+     QUICK REFERENCE
+════════════════════════════════════════════ -->
+<section class="section">
+  <div class="section-label">// Cheat Sheet</div>
+  <h2>Quick Reference — Lệnh cần nhớ</h2>
+  <p class="section-subtitle">Tổng hợp những lệnh thực hành quan trọng nhất cho toàn bộ lộ trình.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-header-title">Tất cả lệnh quan trọng — có giải thích</span>
+      <span class="code-header-lang">bash</span>
+    </div>
+    <div class="code-block cyan">
+      <pre><span class="cm">## ── RBAC ──────────────────────────────────────────────────────</span>
+<span class="cm"># Kiểm tra xem ai đó có quyền làm gì không</span>
+kubectl auth can-i create pods --as system:serviceaccount:backend:ci-runner -n backend
+
+<span class="cm"># Xem tất cả quyền của một ServiceAccount trong namespace</span>
+kubectl auth can-i --list --as system:serviceaccount:backend:ci-runner -n backend
+
+<span class="cm"># Xem tất cả RoleBindings và ClusterRoleBindings</span>
+kubectl get rolebindings,clusterrolebindings -A -o wide
+
+
+<span class="cm">## ── ADMISSION POLICY ──────────────────────────────────────────</span>
+<span class="cm"># Xem tất cả constraint đang áp dụng (Gatekeeper)</span>
+kubectl get constraints -A
+
+<span class="cm"># Xem violations hiện tại của một constraint</span>
+kubectl describe constraint require-env-label
+
+<span class="cm"># Xem audit log chi tiết từ Gatekeeper</span>
+kubectl logs -n gatekeeper-system -l control-plane=controller-manager
+
+
+<span class="cm">## ── EXTERNAL SECRETS ──────────────────────────────────────────</span>
+<span class="cm"># Xem trạng thái sync của tất cả ExternalSecrets</span>
+kubectl get externalsecret -A
+
+<span class="cm"># Xem chi tiết: lần sync cuối, lỗi nếu có</span>
+kubectl describe externalsecret documentdb-uri -n backend
+
+<span class="cm"># Đọc giá trị secret hiện tại (để verify rotation)</span>
+kubectl get secret documentdb-secret -n backend \
+  -o jsonpath='{.data.MONGODB_URI}' | base64 -d
+
+<span class="cm"># Force refresh ngay lập tức (không cần đợi interval)</span>
+kubectl annotate externalsecret documentdb-uri \
+  force-sync=$(date +%s) -n backend --overwrite
+
+
+<span class="cm">## ── TRIVY ────────────────────────────────────────────────────</span>
+<span class="cm"># Quét image, fail nếu có HIGH/CRITICAL</span>
+trivy image --severity HIGH,CRITICAL --exit-code 1 myapp:latest
+
+<span class="cm"># Quét source code tìm secret bị lộ</span>
+trivy fs --security-checks secret .
+
+<span class="cm"># Quét K8s manifest tìm misconfiguration</span>
+trivy config k8s-manifests/
+
+<span class="cm"># Xuất SBOM (Software Bill of Materials)</span>
+trivy image --format cyclonedx --output sbom.json myapp:latest
+
+
+<span class="cm">## ── COSIGN ───────────────────────────────────────────────────</span>
+<span class="cm"># Tạo key pair</span>
+cosign generate-key-pair
+
+<span class="cm"># Ký image sau khi push lên registry</span>
+cosign sign --key cosign.key ghcr.io/myorg/myapp:v1.2.3
+
+<span class="cm"># Verify chữ ký của image</span>
+cosign verify --key cosign.pub ghcr.io/myorg/myapp:v1.2.3
+
+<span class="cm"># Xem tất cả signatures đã gắn vào image</span>
+cosign tree ghcr.io/myorg/myapp:v1.2.3
+
+<span class="cm"># Keyless signing trong GitHub Actions (không cần key)</span>
+<span class="cm"># cosign sign --yes ghcr.io/myorg/myapp:v1.2.3</span></pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Tổng hợp và giải thích từ tài liệu chính thống ·
+  <a href="https://kubernetes.io/docs/reference/access-authn-authz/rbac" target="_blank">K8s RBAC</a> ·
+  <a href="https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/" target="_blank">ValidatingAdmissionPolicy</a> ·
+  <a href="https://open-policy-agent.github.io/gatekeeper" target="_blank">OPA Gatekeeper</a> ·
+  <a href="https://kyverno.io/docs" target="_blank">Kyverno</a> ·
+  <a href="https://external-secrets.io/latest/" target="_blank">External Secrets Operator</a> ·
+  <a href="https://aquasecurity.github.io/trivy" target="_blank">Trivy</a> ·
+  <a href="https://docs.sigstore.dev/cosign/overview" target="_blank">Cosign / Sigstore</a> ·
+  <a href="https://slsa.dev" target="_blank">SLSA Framework</a>
+</footer>
+
+</body>
+</html>

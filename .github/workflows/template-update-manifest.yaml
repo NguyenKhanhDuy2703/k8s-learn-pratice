@@ -1,0 +1,42 @@
+name: Reusable Manifest Updater
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: "Tên của Docker image"
+        required: true
+        type: string
+      manifest_file_path:
+        description: "Đường dẫn tới file deployment.yaml cần sửa"
+        required: true
+        type: string
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }} 
+
+      - name: Update Image Tag in Deployment
+        run: |
+          # Tìm và thay thế tag của image bằng mã hash commit hiện tại
+          sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ github.sha }}|g" ${{ inputs.manifest_file_path }}
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          git add ${{ inputs.manifest_file_path }}
+          
+          # Nếu không có thay đổi (file đã chứa tag này), git sẽ bỏ qua để tránh lỗi
+          git commit -m "chore(cd): update ${{ inputs.image_name }} image tag to ${{ github.sha }}" || echo "No changes to commit"
+          
+          git push

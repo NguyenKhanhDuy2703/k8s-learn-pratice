@@ -392,7 +392,44 @@
   <a class="rail-item" href="#step4"><span class="n">04</span>Push CD</a>
   <a class="rail-item" href="#step5"><span class="n">05</span>GitOps repo</a>
   <a class="rail-item" href="#step6"><span class="n">06</span>ArgoCD</a>
+  <a class="rail-item" href="#k8s1"><span class="n">07</span>Control Plane</a>
+  <a class="rail-item" href="#k8s2"><span class="n">08</span>Node & Pod</a>
+  <a class="rail-item" href="#k8s3"><span class="n">09</span>Networking</a>
+  <a class="rail-item" href="#k8s4"><span class="n">10</span>Storage</a>
+  <a class="rail-item" href="#k8s5"><span class="n">11</span>RBAC</a>
 </nav>
+
+<section class="step" id="overview" style="margin-top: 28px;">
+  <div class="step-head">
+    <div class="step-num">0</div>
+    <div>
+      <h2>Khung học và thứ tự thực hành</h2>
+      <div class="goal">Mục tiêu: giúp bạn hiểu rõ <strong>tại sao</strong> mỗi bước tồn tại trước khi đi vào thao tác cụ thể.</div>
+    </div>
+  </div>
+  <div class="step-body">
+    <p>Slide này được thiết kế theo đúng trình tự một pipeline CI/CD thật: từ việc hiểu lệnh cài đặt, test, build, push, cho đến việc deploy bằng kubectl, rồi chuyển sang GitOps bằng ArgoCD.</p>
+    <h3>1. Chuẩn bị trước khi bắt đầu</h3>
+    <ul>
+      <li>Máy local có <code>node</code>, <code>npm</code>, <code>docker</code>, <code>kubectl</code>.</li>
+      <li>Một cluster Kubernetes (ví dụ <code>kind</code>, Minikube hoặc cluster cloud).</li>
+      <li>Tài khoản container registry như Docker Hub hoặc GHCR để lưu image.</li>
+      <li>Repo GitHub để chạy GitHub Actions và lưu secret nếu cần deploy tự động.</li>
+    </ul>
+    <h3>2. Luồng học theo thứ tự</h3>
+    <ol>
+      <li><strong>Bước 1:</strong> chạy pipeline thủ công để thấy CI/CD là gì.</li>
+      <li><strong>Bước 2:</strong> chuyển thành workflow GitHub Actions để tự động hóa phần build/test/push.</li>
+      <li><strong>Bước 3:</strong> hiểu deploy bằng YAML và <code>kubectl apply</code>.</li>
+      <li><strong>Bước 4:</strong> nối CI + CD bằng cách “push” thay đổi vào cluster.</li>
+      <li><strong>Bước 5:</strong> tách source repo và config repo, chuẩn bị cho GitOps.</li>
+      <li><strong>Bước 6:</strong> dùng ArgoCD để “pull” trạng thái từ Git và tự đồng bộ vào cluster.</li>
+    </ol>
+    <div class="note">
+      <strong>Ghi nhớ:</strong> CI là “xây dựng và kiểm chứng”, CD là “đưa ứng dụng đến môi trường”, còn GitOps là “để Git trở thành nguồn sự thật duy nhất”.
+    </div>
+  </div>
+</section>
 
 <main>
 
@@ -711,11 +748,11 @@ kubectl get pods -w</code></pre>
 
       <h3>1. Chuẩn bị kubeconfig cho GitHub Actions</h3>
       <div class="code-block">
-        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
-        <pre><code><span class="comment"># lấy kubeconfig, encode base64 để lưu vào GitHub Secret</span>
-cat ~/.kube/config | base64 -w 0</code></pre>
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># PowerShell (Windows): tạo chuỗi base64 từ kubeconfig</span>
+[Convert]::ToBase64String([System.IO.File]::ReadAllBytes("$HOME\.kube\config"))</code></pre>
       </div>
-      <p>Lưu kết quả vào secret <code>KUBE_CONFIG_B64</code> trong GitHub repo.</p>
+      <p>Lưu kết quả vào secret <code>KUBE_CONFIG_B64</code> trong GitHub repo. Nếu bạn dùng Git Bash / WSL, lệnh tương đương là <code>cat ~/.kube/config | base64 -w 0</code>.</p>
 
       <h3>2. Thêm step deploy vào workflow</h3>
       <div class="code-block">
@@ -802,6 +839,16 @@ git push -u origin main</code></pre>
           token: ${{ secrets.CONFIG_REPO_TOKEN }}
           path: config-repo
 
+      - <span class="keyword">name:</span> Avoid self-trigger loop
+        run: |
+          <span class="comment"># Nếu workflow nằm cùng repo với manifest, hãy thêm paths-ignore để tránh commit mới kích hoạt lại workflow</span>
+          <span class="comment"># Ví dụ trong .github/workflows/ci.yml:</span>
+          <span class="comment"># on:</span>
+          <span class="comment">#   push:</span>
+          <span class="comment">#     branches: [main]</span>
+          <span class="comment">#     paths-ignore:</span>
+          <span class="comment">#       - 'k8s/**'</span>
+
       - <span class="keyword">name:</span> Update image tag in manifest
         run: |
           cd config-repo
@@ -863,11 +910,14 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 <span class="comment"># lấy password admin ban đầu</span>
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d</code></pre>
+$secret = kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}"; 
+[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($secret))</code></pre>
       </div>
 
       <h3>2. Tạo Application — trỏ về config repo ở bước 5</h3>
+      <div class="note">
+        <strong>GitOps tip:</strong> với mô hình <em>App of Apps</em>, có thể tạo một <code>root-app.yaml</code> duy nhất để trỏ vào thư mục <code>k8s/</code> hoặc <code>apps/</code>. Nếu bạn dùng ArgoCD để quản lý các app con, hãy luôn thêm <code>finalizers: - resources-finalizer.argocd.argoproj.io</code> để khi xóa root app, ArgoCD tự dọn tài nguyên con theo chuỗi (cascading delete), tránh rác resource.
+      </div>
       <div class="code-block">
         <div class="filename"><span>argocd-app.yaml</span></div>
         <pre><code><span class="keyword">apiVersion:</span> argoproj.io/v1alpha1
@@ -875,6 +925,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 <span class="keyword">metadata:</span>
   name: hello-cicd
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 <span class="keyword">spec:</span>
   project: default
   source:
@@ -893,6 +945,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
       <div class="code-block">
         <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
         <pre><code>kubectl apply -f argocd-app.yaml</code></pre>
+      </div>
+
+      <div class="note warn">
+        <strong>Quan trọng:</strong> nếu workflow của bạn nằm trong cùng repo chứa manifest, hãy thêm <code>paths-ignore: ['k8s/**']</code> trong <code>.github/workflows/ci.yml</code> để tránh trigger vòng lặp vô tận: commit cập nhật manifest → workflow chạy lại → lại commit mới → lặp mãi.
       </div>
 
       <h3>3. Lặp lại flow end-to-end và quan sát sự khác biệt</h3>
@@ -950,6 +1006,694 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
       Sau khi đi qua đủ 6 bước, ArgoCD không còn là "hộp đen" — nó chỉ tự động hóa đúng phần việc bạn đã làm tay
       (commit ở bước 5 → <code>kubectl apply</code> ở bước 3), nhưng theo hướng <strong>pull</strong> thay vì <strong>push</strong>.
     </p>
+
+    <div class="takeaway" style="margin-top: 18px;">
+      <div class="tk-title">Tóm tắt cuối buổi</div>
+      <ul>
+        <li>CI giúp bạn <strong>kiểm chứng và đóng gói</strong> code an toàn trước khi deploy.</li>
+        <li>CD giúp bạn <strong>đưa phiên bản mới</strong> vào Kubernetes theo một quy trình có thể lặp lại.</li>
+        <li>GitOps giúp bạn <strong>giữ cluster luôn đúng với Git</strong>, dễ audit, dễ rollback và dễ tự động hóa.</li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- ============================================================ -->
+  <!-- PHẦN MỞ RỘNG: KIẾN TRÚC KUBERNETES HANDS-ON                -->
+  <!-- ============================================================ -->
+
+  <section class="finale" style="margin-top: 90px; border-color: rgba(88,166,255,0.35); background: linear-gradient(135deg, rgba(88,166,255,0.06) 0%, var(--panel) 60%);">
+    <h2>Phần 2 — Kubernetes Architecture <span style="color: var(--accent)">Hands-on</span></h2>
+    <p>Bạn đã biết cách deploy lên cluster. Bây giờ hãy mở cluster đó ra và xem bên trong nó thực sự hoạt động thế nào — bằng lệnh, không phải bằng slide.</p>
+    <div class="note" style="margin-top: 16px;">
+      <strong>Triết lý học:</strong> Mỗi bước dưới đây có một câu hỏi cốt lõi. Chạy lệnh, đọc output, tự trả lời câu hỏi đó — thay vì đọc lý thuyết trước.
+    </div>
+  </section>
+
+  <!-- K8S STEP 7: CONTROL PLANE -->
+  <section class="step" id="k8s1">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">7</div>
+      <div>
+        <h2>Control Plane — Bộ não của cluster</h2>
+        <div class="goal">Câu hỏi cốt lõi: <strong>Ai quyết định pod chạy ở đâu, và quyết định đó được lưu ở đâu?</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Xem các thành phần Control Plane đang chạy</h3>
+      <p>Control Plane cũng chạy dưới dạng pod — trong namespace <code>kube-system</code>. Nhìn vào đó để thấy rõ từng thành phần.</p>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem toàn bộ pod hệ thống</span>
+kubectl get pods -n kube-system
+
+<span class="comment"># Lọc riêng từng thành phần</span>
+kubectl get pods -n kube-system | Select-String -Pattern 'etcd'
+kubectl get pods -n kube-system | Select-String -Pattern 'kube-apiserver'
+kubectl get pods -n kube-system | Select-String -Pattern 'kube-scheduler'
+kubectl get pods -n kube-system | Select-String -Pattern 'kube-controller'</code></pre>
+      </div>
+      <div class="note">
+        <strong>Ghi chú cho cụm lớn:</strong> kube-scheduler có thể chỉ xét một phần số node để giảm tải, theo tham số <code>percentageOfNodesToScore</code> (thường khoảng 50% trong cụm lớn). Điều này giúp tối ưu tốc độ lập lịch trên cluster nhiều node.
+      </div>
+      <div class="note">
+        <strong>Quan sát:</strong> Tên pod có dạng <code>kube-apiserver-&lt;tên-node&gt;</code>. Điều đó nói lên điều gì? API Server gắn với node nào? Nếu node đó chết thì sao?
+      </div>
+      <div class="note warn">
+        <strong>Kiến thức nâng cao:</strong> khi một Pod được tạo, kube-scheduler không "chạy Pod" ngay lập tức. Nó đi qua 3 pha: <strong>Filtering</strong> (loại node không đủ tài nguyên/không thỏa taints/affinity), <strong>Scoring</strong> (đánh giá ưu tiên như image locality, topology spread), rồi <strong>Binding</strong> (ghi nodeName vào etcd). Dòng <code>Successfully assigned...</code> chỉ là thông báo Pod đã được phân node, chưa phải lúc container bắt đầu chạy.
+      </div>
+
+      <h3>2. Theo dõi API Server nhận request thế nào</h3>
+      <p>Bật verbose để thấy mọi HTTP call mà kubectl thực sự gửi đi. Đây là cách nhìn thấu vào "bên dưới" kubectl.</p>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># PowerShell: bật verbose tracing để quan sát HTTP request/response</span>
+kubectl get pods --v=8 2>&1 | Select-String -Pattern 'GET|POST|Response'
+
+<span class="comment"># Xem stream watch event</span>
+kubectl get pods --watch --v=6 2>&1 | Select-Object -First 20</code></pre>
+      </div>
+
+      <h3>3. Xem etcd — nơi lưu toàn bộ trạng thái cluster</h3>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># PowerShell: lấy tên pod etcd</span>
+$ETCD_POD = kubectl get pod -n kube-system -l component=etcd -o jsonpath='{.items[0].metadata.name}'
+
+<span class="comment"># Dùng etcdctl đọc key từ etcd</span>
+kubectl exec -n kube-system $ETCD_POD -- sh -c "ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key get /registry --prefix --keys-only" | Select-Object -First 30
+
+<span class="comment"># Nếu dùng Minikube / image distroless và lỗi 'sh not found', chạy trực tiếp etcdctl thay vì sh -c</span>
+kubectl exec -n kube-system $ETCD_POD -- etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/var/lib/minikube/certs/etcd/ca.crt --cert=/var/lib/minikube/certs/etcd/server.crt --key=/var/lib/minikube/certs/etcd/server.key get /registry --prefix --keys-only | Select-Object -First 30</code></pre>
+      </div>
+      <div class="note warn">
+        <strong>Thử nghiệm tư duy:</strong> Nếu xóa một key trong etcd, điều gì sẽ xảy ra với pod tương ứng? Đừng làm thật — chỉ cần nghĩ qua để hiểu etcd là "nguồn sự thật duy nhất" của cluster.
+      </div>
+
+      <h3>4. Quan sát kube-scheduler ra quyết định</h3>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem log của scheduler</span>
+kubectl logs -n kube-system -l component=kube-scheduler --tail=50
+
+<span class="comment"># Tạo pod pending bằng tài nguyên quá lớn</span>
+@'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-unpschedulable
+spec:
+  containers:
+  - name: app
+    image: nginx
+    resources:
+      requests:
+        memory: "999Gi"
+'@ | kubectl apply -f -
+
+<span class="comment"># Xem event của pod</span>
+kubectl describe pod pod-unpschedulable | Select-String -Pattern 'Events|Warning|FailedScheduling|Unschedulable'
+
+<span class="comment"># Dọn dẹp</span>
+kubectl delete pod pod-unpschedulable</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Bước 7</div>
+        <ul>
+          <li>Control Plane gồm 4 thành phần: <strong>API Server</strong> (cổng vào duy nhất), <strong>etcd</strong> (database), <strong>Scheduler</strong> (chọn node), <strong>Controller Manager</strong> (đảm bảo trạng thái đúng với mong muốn).</li>
+          <li>Mọi thứ trong cluster — pod, service, configmap — đều chỉ là một entry trong etcd.</li>
+          <li>kubectl thực chất chỉ là HTTP client gọi vào API Server.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- K8S STEP 8: NODE & POD INTERNALS -->
+  <section class="step" id="k8s2">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">8</div>
+      <div>
+        <h2>Worker Node & Pod — Bên trong một container đang chạy</h2>
+        <div class="goal">Câu hỏi cốt lõi: <strong>kubelet làm gì sau khi nhận pod spec? Container Runtime thực sự là gì?</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Xem thông tin node và tài nguyên</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem toàn bộ node trong cluster</span>
+kubectl get nodes -o wide
+
+<span class="comment"># Xem chi tiết một node: OS, kernel, container runtime, CPU/RAM</span>
+kubectl describe node &lt;tên-node&gt;
+
+<span class="comment"># Xem tài nguyên đang được dùng trên từng node</span>
+kubectl top nodes</code></pre>
+      </div>
+
+      <h3>2. Hiểu kubelet — agent chạy trên mỗi node</h3>
+      <p>kubelet là process chạy trực tiếp trên node (không phải pod). Nó nhận pod spec từ API Server và ra lệnh cho Container Runtime tạo container.</p>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Trên node (nếu dùng kind hoặc minikube SSH vào được)</span>
+docker exec -it kind-control-plane sh   <span class="comment"># kind</span>
+<span class="comment"># hoặc</span>
+minikube ssh                              <span class="comment"># minikube</span>
+
+<span class="comment"># Bên trong node — xem kubelet process</span>
+Get-Process kubelet
+systemctl status kubelet
+
+<span class="comment"># Xem kubelet đang watch những gì từ API Server</span>
+journalctl -u kubelet --since "5 minutes ago" | Select-String -Pattern 'pod|sync' | Select-Object -Last 20</code></pre>
+      </div>
+      <div class="note warn">
+        <strong>Thực tế trên Linux:</strong> khi dùng <code>Get-Process kubelet</code> hoặc <code>ps aux | grep kubelet</code>, bạn có thể thấy cả các tiến trình khác như <code>kube-apiserver</code>, <code>node_exporter</code>, <code>prometheus-operator</code>. Đây là hiện tượng bình thường vì các tiến trình giám sát hoặc dịch vụ bảo mật có chứa từ khóa liên quan đến kubelet.
+      </div>
+
+      <h3>3. Tạo pod và theo dõi từng giai đoạn lifecycle</h3>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Terminal 1: watch pod status realtime</span>
+kubectl get pod -w
+
+<span class="comment"># Terminal 2: tạo pod bằng Here-String (PowerShell)</span>
+@"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: arch-demo
+spec:
+  initContainers:
+  - name: init-wait
+    image: busybox
+    command: ['sh', '-c', 'echo Init done; sleep 2']
+  containers:
+  - name: main
+    image: nginx
+    ports:
+    - containerPort: 80
+    readinessProbe:
+      httpGet:
+        path: /
+        port: 80
+      initialDelaySeconds: 3
+"@ | kubectl apply -f -
+
+<span class="comment"># Quan sát: Pending → Init → PodInitializing → Running</span>
+
+<span class="comment"># Xem events chi tiết — thấy rõ từng bước kubelet làm</span>
+kubectl describe pod arch-demo | Select-String -Pattern 'Events|Normal|Warning|Failed|Started' </code></pre>
+      </div>
+      <div class="note">
+        <strong>Events cho thấy:</strong> Scheduled (scheduler chọn node) → Pulling (kubelet kéo image) → Pulled → Created → Started. Mỗi dòng là một hành động thực tế của kubelet.
+      </div>
+      <div class="note warn">
+        <strong>Init container & readiness:</strong> <code>initContainers</code> phải chạy xong hoàn toàn trước khi container chính bắt đầu; <code>readinessProbe</code> quyết định Pod có được phép nhận traffic hay không. Nếu bạn dùng bộ gõ tiếng Việt và nhập lệnh trực tiếp vào shell, có thể bị lỗi mã hóa UTF-8; chuyển sang tiếng Anh trước khi gõ là tốt nhất.
+      </div>
+
+      <h3>4. Exec vào container — xem namespace isolation</h3>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Vào bên trong container đang chạy</span>
+kubectl exec -it arch-demo -- sh
+
+<span class="comment"># Bên trong container:</span>
+hostname                    <span class="comment"># tên pod</span>
+cat /etc/hosts              <span class="comment"># thấy IP của pod</span>
+ps aux                      <span class="comment"># chỉ thấy process của container này</span>
+cat /proc/1/net/dev         <span class="comment"># network interface riêng của pod</span>
+exit</code></pre>
+      </div>
+
+      <h3>5. Hiểu tại sao pod có IP riêng</h3>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem IP của từng pod</span>
+kubectl get pods -o wide
+
+<span class="comment"># Debug nhanh từ container tạm</span>
+kubectl run test-curl --image=curlimages/curl --rm -it --restart=Never -- curl http://&lt;IP-của-arch-demo&gt;:80
+
+<span class="comment"># Dọn dẹp</span>
+kubectl delete pod arch-demo</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Bước 8</div>
+        <ul>
+          <li>kubelet nhận pod spec → gọi Container Runtime Interface (CRI) → tạo container.</li>
+          <li>Pod là một nhóm container dùng chung network namespace — nên chúng thấy nhau qua <code>localhost</code>.</li>
+          <li>Events trong <code>kubectl describe</code> là nhật ký thực tế của kubelet, rất hữu ích để debug.</li>
+          <li>Trong image slim/alpine, lệnh <code>ps</code> hoặc <code>sh</code> có thể không có sẵn; nếu cần debug mạng, hãy đọc <code>/proc/1/net/dev</code> trực tiếp.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- K8S STEP 9: NETWORKING -->
+  <section class="step" id="k8s3">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">9</div>
+      <div>
+        <h2>Networking — Service, CoreDNS và định tuyến nội bộ</h2>
+        <div class="goal">Mục tiêu: hiểu vì sao Pod cần Service, tại sao CoreDNS là “danh bạ nội bộ” của cluster, và NodePort giúp mở dịch vụ ra ngoài thế nào.</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <h3>1. Vì sao phải dùng Service?</h3>
+      <p>Pod là <strong>ephemeral</strong>: nó có thể chết và tạo mới bất kỳ lúc nào, nên địa chỉ IP của Pod không ổn định. Nếu app khác hardcode IP Pod thì sẽ mất kết nối sau mỗi restart hoặc rolling update.</p>
+      <div class="note">
+        <strong>Service</strong> giống “quầy lễ tân” với một IP ổn định: khách hàng gọi vào Service, Service sẽ chuyển traffic đến các Pod đang chạy ở phía sau theo selector/label.
+      </div>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Expose Deployment bằng Service</span>
+kubectl expose deployment web --port=80 --target-port=80
+
+<span class="comment"># Mặc định là ClusterIP nếu không ghi --type</span>
+kubectl get svc web -o wide
+
+<span class="comment"># --port = cổng của Service, --target-port = cổng container</span></code></pre>
+      </div>
+
+      <h3>2. CoreDNS: DNS nội bộ của cluster</h3>
+      <p>CoreDNS đóng vai trò như <strong>cuốn danh bạ DNS nội bộ</strong>. Khi một Service được tạo, CoreDNS cập nhật bản ghi ánh xạ tên Service sang ClusterIP. Do đó, các Pod chỉ cần gọi tên Service thay vì hardcode IP Pod.</p>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem CoreDNS đang chạy</span>
+kubectl get pods -n kube-system | Select-String coredns
+
+<span class="comment"># Test DNS từ trong cluster</span>
+kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web
+
+<span class="comment"># Tên đầy đủ: service.namespace.svc.cluster.local</span>
+kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web.default.svc.cluster.local</code></pre>
+      </div>
+      <div class="note">
+        <strong>Lợi ích:</strong> CoreDNS lưu IP của Service, không phải IP của từng Pod. Khi scale out nhiều Pod, hệ thống vẫn ổn định vì chỉ có những bản ghi Service cần duy trì.
+      </div>
+
+      <h3>3. NodePort — mở cổng ra ngoài</h3>
+      <p><code>NodePort</code> cho phép mở cổng tĩnh trên Worker Node để hệ thống bên ngoài truy cập dịch vụ. Tuy nhiên, nó làm việc ở tầng 4 (TCP/UDP), nên không có khả năng hiểu HTTP path/host như Ingress.</p>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo Service kiểu NodePort</span>
+kubectl expose deployment web --name=web-nodeport --port=80 --target-port=80 --type=NodePort
+
+<span class="comment"># Xem cổng được cấp</span>
+kubectl get svc web-nodeport
+
+<span class="comment"># Nếu dùng Minikube</span>
+minikube service web-nodeport</code></pre>
+      </div>
+      <div class="note warn">
+        <strong>Ghi nhớ:</strong> NodePort dùng cổng trong dải <code>30000-32767</code>. Trong production, thường dùng <code>LoadBalancer</code> hoặc <code>Ingress</code> để có routing và bảo mật tốt hơn.
+      </div>
+
+      <h3>4. Gỡ lỗi Windows PowerShell</h3>
+      <ul>
+        <li>Kubernetes phân biệt hoa thường nghiêm ngặt: viết sai <code>NodePort</code> thành <code>NodePor</code> sẽ bị lỗi <code>Unsupported value</code>.</li>
+        <li>Trên PowerShell, lệnh Bash có dấu <code>\</code> để xuống dòng có thể bị lỗi parser. Nên nối thành một dòng hoặc dùng backtick <code>`</code> khi cần xuống dòng.</li>
+        <li>Để mở Service qua NodePort trên Windows, dùng <code>minikube service &lt;tên-service&gt;</code> để tự mở trong trình duyệt.</li>
+      </ul>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Mạng Kubernetes</div>
+        <ul>
+          <li>Service là IP ổn định và load balancer nội bộ cho các Pod thay đổi liên tục.</li>
+          <li>CoreDNS là DNS nội bộ của cluster, giúp microservices gọi nhau bằng tên Service thay vì hardcode IP Pod.</li>
+          <li>NodePort mở cổng ra ngoài Node ở tầng 4, phù hợp dev/testing hoặc tiền đề cho production.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="k8s3-existing" style="margin-top: 20px;">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">9</div>
+      <div>
+        <h2>Networking — Service, kube-proxy và CoreDNS (phần mở rộng)</h2>
+        <div class="goal">Câu hỏi cốt lõi: <strong>Tại sao không dùng IP của pod trực tiếp? Service giải quyết vấn đề gì?</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Vấn đề của IP pod — thực hành để thấy</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo Deployment 2 replicas</span>
+kubectl create deployment web --image=nginx --replicas=2
+kubectl get pods -o wide        <span class="comment"># ghi nhớ 2 IP pod</span>
+
+<span class="comment"># Xóa một pod → nó tự tạo lại với IP MỚI</span>
+kubectl delete pod &lt;tên-pod-1&gt;
+kubectl get pods -o wide        <span class="comment"># IP đã thay đổi!</span></code></pre>
+      </div>
+      <div class="note warn">
+        <strong>Vấn đề thực tế:</strong> Pod có thể chết và tái sinh bất kỳ lúc nào với IP khác. Nếu app khác hardcode IP của pod, nó sẽ mất kết nối. Service giải quyết điều này.
+      </div>
+      <div class="note">
+        <strong>ClusterIP mặc định:</strong> nếu bạn chạy <code>kubectl expose deployment web --port=80 --target-port=80</code> mà không truyền <code>--type</code>, Kubernetes sẽ tạo Service loại <code>ClusterIP</code>. Đây là IP nội bộ, chỉ các Pod trong cluster mới gọi được. <code>--port</code> là cổng của Service; <code>--target-port</code> là cổng thực của container.
+      </div>
+      <div class="note">
+        <strong>Mô hình mạng nội bộ:</strong> Pod-to-Pod trong cùng Node có thể giao tiếp trực tiếp qua IP gốc (flat network), không cần NAT. Cấu trúc bên dưới là <code>veth pair</code> + <code>virtual bridge</code> (ví dụ <code>cni0</code> hoặc <code>docker0</code>) để chuyển gói tin giữa các Pod.
+      </div>
+
+      <h3>2. Tạo Service và hiểu cơ chế selector</h3>
+      <div class="note">
+        <strong>Selector / Label:</strong> Service không quan tâm đến tên Pod; nó tìm Pod bằng label. Nếu Pod có label khớp với selector, nó sẽ được đưa vào Endpoints của Service. Đây là cơ chế giúp Service luôn trỏ đúng nhóm backend đang chạy.
+      </div>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Expose Deployment bằng Service ClusterIP</span>
+kubectl expose deployment web --port=80 --target-port=80
+
+<span class="comment"># Xem Service — chú ý CLUSTER-IP</span>
+kubectl get service web
+
+<span class="comment"># Xem endpoints — Service đang trỏ tới những pod nào?</span>
+kubectl get endpoints web
+
+<span class="comment"># Xóa một pod → đợi pod mới lên → check endpoints lại</span>
+kubectl delete pod &lt;tên-pod&gt;
+kubectl get endpoints web       <span class="comment"># Endpoints tự cập nhật!</span></code></pre>
+      </div>
+
+      <h3>3. DNS nội bộ — coreDNS trong cluster</h3>
+      <div class="note">
+        <strong>CoreDNS:</strong> là add-on nội bộ của cluster, giúp các Pod tìm Service bằng tên (<code>web.default.svc.cluster.local</code>) thay vì phải hardcode IP. CoreDNS lắng nghe thay đổi từ API Server và cập nhật bản ghi DNS theo thời gian thực.
+      </div>
+      <div class="code-block">
+        <div class="filename"><span>PowerShell</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem coreDNS đang chạy</span>
+kubectl get pods -n kube-system | Select-String coredns
+
+<span class="comment"># Resolve tên Service bằng busybox</span>
+kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web
+
+<span class="comment"># Resolve tên đầy đủ</span>
+kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web.default.svc.cluster.local</code></pre>
+      </div>
+
+      <h3>4. Các loại Service — ClusterIP vs NodePort vs LoadBalancer</h3>
+      <div class="note">
+        <strong>Phân biệt proxy:</strong> <code>kubectl proxy</code> là công cụ trên máy của bạn để truy cập API Server; <code>kube-proxy</code> là daemon chạy trên mỗi Node, dùng để định tuyến gói tin giữa Service và Pod. Hai thứ này khác nhau hoàn toàn về vai trò.
+      </div>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># NodePort — expose ra ngoài cluster qua port trên node</span>
+kubectl expose deployment web --name=web-nodeport \
+  --port=80 --target-port=80 --type=NodePort
+
+kubectl get service web-nodeport
+<span class="comment"># EXTERNAL-IP = &lt;none&gt;, nhưng PORT(S) = 80:3xxxx/TCP</span>
+<span class="comment"># Truy cập: http://&lt;IP-của-node&gt;:3xxxx</span>
+
+<span class="comment"># Dùng minikube service để mở thẳng trên browser</span>
+minikube service web-nodeport  <span class="comment"># nếu dùng minikube</span>
+
+<span class="comment"># Xem kube-proxy tạo iptables rule thế nào (trên node)</span>
+iptables -t nat -L KUBE-SERVICES | Select-String -Pattern 'web'</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Bước 9</div>
+        <ul>
+          <li>Service là một IP ổn định + DNS name, đứng trước một nhóm pod — không bị ảnh hưởng khi pod chết/tái sinh.</li>
+          <li>kube-proxy chạy trên mỗi node, dịch ClusterIP → Pod IP thực bằng <code>iptables</code> hoặc <code>ipvs</code>.</li>
+          <li>DNS trong cluster do coreDNS quản lý — mọi Service đều có tên dạng <code>&lt;name&gt;.&lt;namespace&gt;.svc.cluster.local</code>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- K8S STEP 10: STORAGE -->
+  <section class="step" id="k8s4">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">10</div>
+      <div>
+        <h2>Storage — ConfigMap, Secret, PersistentVolume</h2>
+        <div class="goal">Câu hỏi cốt lõi: <strong>Dữ liệu của app sẽ đi về đâu khi pod bị xóa?</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. ConfigMap — biến môi trường không hardcode vào image</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo ConfigMap</span>
+kubectl create configmap app-config \
+  --from-literal=APP_ENV=production \
+  --from-literal=LOG_LEVEL=info
+
+kubectl get configmap app-config -o yaml
+
+<span class="comment"># Dùng ConfigMap làm env trong pod</span>
+cat &lt;&lt;EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-demo
+spec:
+  containers:
+  - name: app
+    image: busybox
+    command: ['sh', '-c', 'env | findstr APP; sleep 3600']
+    envFrom:
+    - configMapRef:
+        name: app-config
+EOF
+
+kubectl logs config-demo   <span class="comment"># thấy APP_ENV=production</span></code></pre>
+      </div>
+
+      <h3>2. Secret — lưu thông tin nhạy cảm</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo Secret</span>
+kubectl create secret generic db-creds \
+  --from-literal=username=admin \
+  --from-literal=password=supersecret
+
+<span class="comment"># Xem Secret — giá trị bị base64 encode</span>
+kubectl get secret db-creds -o yaml
+
+<span class="comment"># Decode để thấy giá trị thật (PowerShell)</span>
+$pwd = kubectl get secret db-creds -o jsonpath='{.data.password}'
+[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($pwd))</code></pre>
+      </div>
+      <div class="note warn">
+        <strong>Lưu ý bảo mật:</strong> Secret trong K8s mặc định chỉ encode base64 — không encrypt. Trong môi trường production cần bật Encryption at Rest hoặc dùng Vault.
+      </div>
+
+      <h3>3. PersistentVolume — dữ liệu sống sót qua vòng đời pod</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo PersistentVolumeClaim</span>
+cat &lt;&lt;EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+EOF
+
+kubectl get pvc   <span class="comment"># trạng thái Bound — được gán vào PV tự động</span>
+
+<span class="comment"># Mount vào pod</span>
+cat &lt;&lt;EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-demo
+spec:
+  containers:
+  - name: app
+    image: busybox
+    command: ['sh', '-c', 'echo "hello persistent" > /data/test.txt; cat /data/test.txt; sleep 3600']
+    volumeMounts:
+    - mountPath: /data
+      name: my-vol
+  volumes:
+  - name: my-vol
+    persistentVolumeClaim:
+      claimName: data-pvc
+EOF
+
+<span class="comment"># Xóa pod, tạo pod mới cùng PVC — dữ liệu vẫn còn</span>
+kubectl delete pod storage-demo
+kubectl apply -f -  &lt;&lt;EOF
+... (pod mới cùng PVC) ...
+EOF
+kubectl exec -it storage-demo -- cat /data/test.txt</code></pre>
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Bước 10</div>
+        <ul>
+          <li><strong>ConfigMap</strong>: config không nhạy cảm → inject vào pod qua env hoặc volume file.</li>
+          <li><strong>Secret</strong>: thông tin nhạy cảm → cần thêm biện pháp bảo mật ngoài K8s trong production.</li>
+          <li><strong>PVC/PV</strong>: dữ liệu tồn tại độc lập với pod — pod chết, dữ liệu còn; pod mới mount lại là tiếp tục được.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- K8S STEP 11: RBAC -->
+  <section class="step" id="k8s5">
+    <div class="step-head">
+      <div class="step-num" style="background: var(--accent);">11</div>
+      <div>
+        <h2>RBAC — Ai được làm gì trong cluster</h2>
+        <div class="goal">Câu hỏi cốt lõi: <strong>Làm sao giới hạn để ArgoCD chỉ deploy được vào namespace của nó, không phải toàn cluster?</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <h3>1. Kiểm tra quyền hiện tại của mình</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Bạn có quyền gì?</span>
+kubectl auth can-i --list
+
+<span class="comment"># Kiểm tra quyền cụ thể</span>
+kubectl auth can-i create pods
+kubectl auth can-i delete nodes
+kubectl auth can-i get secrets -n kube-system</code></pre>
+      </div>
+
+      <h3>2. Tạo ServiceAccount bị giới hạn quyền</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Tạo ServiceAccount</span>
+kubectl create serviceaccount limited-user -n default
+
+<span class="comment"># Tạo Role — chỉ được get/list pods trong namespace default</span>
+cat &lt;&lt;EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+EOF
+
+<span class="comment"># Bind Role vào ServiceAccount</span>
+kubectl create rolebinding pod-reader-binding \
+  --role=pod-reader \
+  --serviceaccount=default:limited-user \
+  -n default</code></pre>
+      </div>
+
+      <h3>3. Kiểm chứng quyền bằng impersonation</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Giả vờ mình là limited-user — xem được gì</span>
+kubectl auth can-i --list \
+  --as=system:serviceaccount:default:limited-user
+
+<span class="comment"># Được: get pods</span>
+kubectl get pods \
+  --as=system:serviceaccount:default:limited-user
+
+<span class="comment"># Không được: xóa pods</span>
+kubectl delete pod arch-demo \
+  --as=system:serviceaccount:default:limited-user
+<span class="comment"># → Error from server (Forbidden)</span>
+
+<span class="comment"># Không được: xem secret</span>
+kubectl get secrets \
+  --as=system:serviceaccount:default:limited-user
+<span class="comment"># → Error from server (Forbidden)</span></code></pre>
+      </div>
+
+      <h3>4. Hiểu RBAC của ArgoCD — liên hệ lại bước 6</h3>
+      <div class="code-block">
+        <div class="filename"><span>terminal</span><div class="dots"><span></span><span></span><span></span></div></div>
+        <pre><code><span class="comment"># Xem ClusterRole mà ArgoCD dùng</span>
+kubectl get clusterrole argocd-application-controller -o yaml | Select-String -Pattern 'rules:|apiGroups|resources|verbs'
+
+<span class="comment"># Xem tất cả RBAC của ArgoCD</span>
+kubectl get rolebinding,clusterrolebinding -n argocd | Select-String -Pattern 'argocd'
+
+<span class="comment"># ServiceAccount mà ArgoCD dùng để gọi API Server</span>
+kubectl get serviceaccount -n argocd</code></pre>
+      </div>
+      <div class="note">
+        <strong>Kết nối với bước 6:</strong> ArgoCD không dùng kubeconfig như bạn. Nó dùng ServiceAccount với ClusterRole cho phép nó <code>get/list/watch/apply</code> mọi resource — đó là lý do nó có thể tự <code>kubectl apply</code> mà không cần credential từ bên ngoài.
+      </div>
+
+      <div class="takeaway">
+        <div class="tk-title">Takeaway — Bước 11</div>
+        <ul>
+          <li>RBAC = <strong>Role</strong> (quyền gì) + <strong>RoleBinding</strong> (gán cho ai) + <strong>Subject</strong> (User / Group / ServiceAccount).</li>
+          <li>Dùng <code>kubectl auth can-i --as=...</code> để kiểm tra quyền mà không cần đăng nhập thật.</li>
+          <li>Mọi pod đều chạy dưới một ServiceAccount — nếu không khai báo, dùng <code>default</code> SA (thường có quyền tối thiểu).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINALE K8S -->
+  <section class="finale" style="margin-top: 90px;">
+    <h2>Lộ trình tiếp theo — <span>từ Architecture đến Production</span></h2>
+    <p>Sau khi đã hands-on qua 5 chủ đề kiến trúc, đây là những gì bạn nên khám phá tiếp theo để đến mức "hiểu cluster thật sự".</p>
+
+    <table class="compare-table" style="margin-top: 18px;">
+      <tr>
+        <th>Chủ đề</th>
+        <th>Tại sao quan trọng</th>
+        <th>Hands-on gợi ý</th>
+      </tr>
+      <tr>
+        <td><strong>Ingress &amp; Ingress Controller</strong></td>
+        <td>Layer 7 routing — một IP vào nhiều service khác nhau theo path/hostname</td>
+        <td>Cài nginx-ingress, tạo Ingress rule, quan sát nginx config tự sinh</td>
+      </tr>
+      <tr>
+        <td><strong>HPA &amp; VPA</strong></td>
+        <td>Auto-scaling pod dựa trên CPU/memory/custom metric</td>
+        <td>Dùng <code>kubectl autoscale</code>, chạy load test bằng <code>hey</code>, xem pod tự nhân lên</td>
+      </tr>
+      <tr>
+        <td><strong>Network Policy</strong></td>
+        <td>Firewall giữa các pod — mặc định pod nào cũng nói chuyện được với nhau</td>
+        <td>Deny all ingress → từng bước allow từng service → kiểm chứng bằng <code>curl</code></td>
+      </tr>
+      <tr>
+        <td><strong>Helm</strong></td>
+        <td>Package manager cho K8s — thay vì apply từng YAML</td>
+        <td>Cài một chart có sẵn, rồi tự viết chart đơn giản với <code>values.yaml</code></td>
+      </tr>
+      <tr>
+        <td class="highlight"><strong>Multi-node cluster thật</strong></td>
+        <td>kind/minikube che mất nhiều thứ — cần thấy node thật, taint/toleration, node affinity</td>
+        <td>Dùng k3s trên 2-3 VPS rẻ (~$5/node), cài thủ công từng bước</td>
+      </tr>
+    </table>
+
+    <div class="takeaway" style="margin-top: 24px;">
+      <div class="tk-title">Thứ tự học được đề xuất</div>
+      <ol style="margin: 8px 0 0 18px; font-size: 14px; line-height: 1.9;">
+        <li>Hoàn thành bước 7–11 ở trên với <code>kind</code> hoặc <code>minikube</code>.</li>
+        <li>Dựng cluster k3s 2 node thật — làm lại toàn bộ từ bước 7 trên môi trường thật.</li>
+        <li>Thêm Ingress + HPA vào app từ bước 6 (ArgoCD deploy + tự scale).</li>
+        <li>Học Network Policy để hiểu tại sao microservices cần isolation.</li>
+        <li>Học Helm để đóng gói ứng dụng chuẩn hơn thay vì raw YAML.</li>
+      </ol>
+    </div>
   </section>
 
 </main>

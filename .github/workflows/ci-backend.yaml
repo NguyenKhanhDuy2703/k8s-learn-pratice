@@ -1,0 +1,49 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/be/**" # CHỈ chạy khi có thay đổi trong thư mục Backend
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/be # Trỏ tới đúng thư mục chứa package.json của BE
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Run Unit Tests
+        run: npm run test:unit --if-present
+        
+      - name: Run Integration Tests
+        run: npm run test:integration --if-present
+
+  # GỌI FILE TEMPLATE ĐỂ BUILD DOCKER
+  call-docker-build:
+    needs: [test-backend] # Bắt buộc phải vượt qua bài Test mới được Build
+    uses: ./.github/workflows/template-docker-build.yaml
+    with:
+      working_directory: ./apps/be
+      image_name: backend-api  # <-- Thay đổi tên Image tùy ý bạn
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  call-update-manifest:
+    needs: [call-docker-build] # Đợi Build xong mới được Update Manifest
+    uses: ./.github/workflows/template-update-manifest.yaml
+    with:
+      image_name: backend-web # <-- Tên Image phải trùng với tên trong deployment.yaml
+      manifest_file_path: ./cd-application/be/deployment.yaml # Đường dẫn tới file deployment.yaml của BE
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}

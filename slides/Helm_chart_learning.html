@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helm Chart - Tài liệu học tập</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2433;
+    --border: #2d3548;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+    --blue-dim: #1e3a5f;
+    --teal: #14b8a6;
+    --teal-dim: #0d3330;
+    --purple: #a855f7;
+    --purple-dim: #2d1b4e;
+    --amber: #f59e0b;
+    --amber-dim: #3d2a00;
+    --green: #22c55e;
+    --green-dim: #0d2e1a;
+    --red: #ef4444;
+    --red-dim: #3b0f0f;
+    --coral: #f97316;
+    --pink: #ec4899;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1f35 50%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.15) 0%, transparent 60%);
+  }
+  .hero-badge {
+    display: inline-block;
+    background: var(--blue-dim);
+    color: var(--blue-light);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.75rem;
+  }
+  .hero p {
+    color: var(--text2);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero-tags {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  }
+  .hero-tags span {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; gap: 0; overflow-x: auto;
+  }
+  .nav a {
+    color: var(--text2);
+    text-decoration: none;
+    padding: 0.85rem 1rem;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .nav a:hover { color: var(--text); border-bottom-color: var(--border); }
+  .nav a.active { color: var(--blue-light); border-bottom-color: var(--blue); }
+
+  /* Layout — container is now inside .page-body flex */
+
+  /* Sections */
+  .section {
+    padding: 3rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 1.75rem;
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .section h2 { font-size: 1.5rem; font-weight: 600; }
+  .week-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text3);
+    margin-bottom: 0.3rem;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card h3 {
+    font-size: 1rem; font-weight: 600;
+    margin-bottom: 0.6rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card p { color: var(--text2); font-size: 14px; line-height: 1.65; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+
+  /* Code blocks */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .code-header {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .code-header span { font-size: 12px; color: var(--text2); font-family: 'Courier New', monospace; }
+  .code-dots { display: flex; gap: 6px; }
+  .code-dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  pre {
+    padding: 1.25rem 1.5rem;
+    font-family: 'Courier New', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #c9d1d9;
+  }
+  .k { color: #ff79c6; }
+  .s { color: #50fa7b; }
+  .v { color: #bd93f9; }
+  .c { color: #6272a4; font-style: italic; }
+  .t { color: #f1fa8c; }
+  .b { color: #8be9fd; }
+  .o { color: #ffb86c; }
+
+  /* Tree structure */
+  .tree {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 2;
+  }
+  .tree .dir { color: #60a5fa; font-weight: 600; }
+  .tree .file { color: #c9d1d9; }
+  .tree .comment { color: #6272a4; }
+  .tree .highlight { color: #f1fa8c; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-blue { background: var(--blue-dim); color: var(--blue-light); }
+  .badge-teal { background: var(--teal-dim); color: var(--teal); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-red { background: var(--red-dim); color: var(--red); }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+  .flow-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .flow-arrow { color: var(--text3); font-size: 18px; }
+
+  /* Info box */
+  .info-box {
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    border-left: 3px solid;
+    font-size: 14px;
+  }
+  .info-box.tip { background: var(--teal-dim); border-color: var(--teal); color: #99f6e4; }
+  .info-box.warn { background: var(--amber-dim); border-color: var(--amber); color: #fde68a; }
+  .info-box.danger { background: var(--red-dim); border-color: var(--red); color: #fca5a5; }
+  .info-box strong { display: block; margin-bottom: 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before {
+    content: '';
+    position: absolute; left: 8px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-dot {
+    position: absolute; left: -1.75rem; top: 4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid;
+  }
+  .timeline-item h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .timeline-item p { font-size: 13px; color: var(--text2); }
+
+  /* Comparison table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: var(--bg3);
+    padding: 10px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* App cards */
+  .app-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .app-card:hover { border-color: rgba(59,130,246,0.4); }
+  .app-card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .app-icon {
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .app-card-body { padding: 1.25rem; }
+
+  /* Steps */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 1rem;
+    margin-bottom: 1.5rem;
+    counter-increment: step;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--blue-dim);
+    border: 1px solid rgba(59,130,246,0.4);
+    color: var(--blue-light);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-content h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .step-content p { font-size: 13px; color: var(--text2); }
+
+  /* Env cards */
+  .env-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .env-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .env-header {
+    padding: 10px 16px;
+    font-size: 13px; font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .env-body { padding: 12px 16px; font-size: 12px; font-family: monospace; }
+  .env-body .key { color: var(--text3); }
+  .env-body .val { color: var(--text); }
+  .env-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+
+  /* Image gallery */
+  .img-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 1rem 0;
+  }
+  .img-box {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .img-box img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .img-cap {
+    padding: 8px 12px;
+    font-size: 12px; color: var(--text2);
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Highlight row */
+  .hl { background: rgba(59,130,246,0.08); }
+
+  /* Scroll top button */
+  .back-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--blue);
+    color: white;
+    border: none; cursor: pointer;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    text-decoration: none;
+  }
+
+  /* ── Page layout with sidebar ── */
+  .page-body {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    gap: 0;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 48px;
+    height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 1.5rem 0 2rem;
+    border-right: 1px solid var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .toc-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 0 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .toc-section { margin-bottom: 4px; }
+
+  .toc-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 1.25rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    line-height: 1.3;
+  }
+  .toc-link:hover {
+    color: var(--text);
+    background: rgba(255,255,255,0.04);
+  }
+  .toc-link.active {
+    color: var(--blue-light);
+    border-left-color: var(--blue);
+    background: rgba(59,130,246,0.08);
+  }
+  .toc-link .toc-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
+
+  .toc-sub { padding-left: 0; }
+  .toc-sub .toc-link {
+    padding-left: 2.5rem;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text3);
+  }
+  .toc-sub .toc-link:hover { color: var(--text2); }
+  .toc-sub .toc-link.active { color: var(--blue-light); border-left-color: var(--blue); }
+
+  .toc-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 1.25rem;
+  }
+
+  /* Main content */
+  .container {
+    flex: 1;
+    min-width: 0;
+    max-width: 1000px;
+    padding: 0 2rem;
+  }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .container { padding: 0 1rem; }
+  }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .env-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 2rem; }
+    .nav { padding: 0 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">🎓 Tài liệu học Kubernetes</div>
+  <h1>⛵ Helm Chart Mastery</h1>
+  <p>Từ cơ bản đến nâng cao — Học Helm Chart qua 4 tuần với thực hành thực tế</p>
+  <div class="hero-tags">
+    <span>📦 Helm 3</span>
+    <span>☸️ Kubernetes</span>
+    <span>🔄 ArgoCD</span>
+    <span>🌍 Multi-environment</span>
+    <span>🔐 Secret Management</span>
+    <span>🐳 Docker</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <a href="#week1" class="active">Cơ bản</a>
+  <a href="#week3">Nâng cao</a>
+  <a href="#week4">Tuần 4: ArgoCD & Multi-env</a>
+  <a href="#practice">Thực hành</a>
+  <a href="#jfrog">JFrog Artifactory</a>
+</nav>
+
+<div class="page-body">
+
+<!-- ── SIDEBAR TOC ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="toc-title">Mục lục</div>
+
+  <div class="toc-section">
+    <a href="#week1" class="toc-link active" data-section="week1">
+      <span class="toc-icon">📦</span> Cơ bản
+    </a>
+    <div class="toc-sub">
+      <a href="#week1-whatishelm" class="toc-link">Helm là gì?</a>
+      <a href="#week1-structure" class="toc-link">Cấu trúc thư mục</a>
+      <a href="#week1-chartyaml" class="toc-link">Chart.yaml</a>
+      <a href="#week1-values" class="toc-link">values.yaml</a>
+      <a href="#week1-templates" class="toc-link">Templates</a>
+      <a href="#week1-helmtemplate" class="toc-link">helm template</a>
+      <a href="#week1-functions" class="toc-link">Template Functions</a>
+    </div>
+  </div>
+
+  <div class="toc-divider"></div>
+
+  <div class="toc-section">
+    <a href="#week3" class="toc-link" data-section="week3">
+      <span class="toc-icon">🔄</span> Nâng cao
+    </a>
+    <div class="toc-sub">
+      <a href="#week3-upgrade" class="toc-link">Upgrade & Rollback</a>
+      <a href="#week3-dependency" class="toc-link">Dependency Charts</a>
+      <a href="#week3-secrets" class="toc-link">Secret Management</a>
+    </div>
+  </div>
+
+  <div class="toc-divider"></div>
+
+  <div class="toc-section">
+    <a href="#week4" class="toc-link" data-section="week4">
+      <span class="toc-icon">🔀</span> ArgoCD & Multi-env
+    </a>
+    <div class="toc-sub">
+      <a href="#week4-gitops" class="toc-link">GitOps Flow</a>
+      <a href="#week4-structure" class="toc-link">Cấu trúc thư mục</a>
+      <a href="#week4-envs" class="toc-link">Dev / Staging / Prod</a>
+      <a href="#week4-argocd" class="toc-link">ArgoCD Application</a>
+    </div>
+  </div>
+
+  <div class="toc-divider"></div>
+
+  <div class="toc-section">
+    <a href="#practice" class="toc-link" data-section="practice">
+      <span class="toc-icon">🛠️</span> Thực hành
+    </a>
+    <div class="toc-sub">
+      <a href="#practice-nginx" class="toc-link">Nginx</a>
+      <a href="#practice-spring" class="toc-link">Spring Boot</a>
+      <a href="#practice-node" class="toc-link">Node.js API</a>
+      <a href="#practice-checklist" class="toc-link">Checklist</a>
+    </div>
+  </div>
+
+  <div class="toc-divider"></div>
+
+  <div class="toc-section">
+    <a href="#jfrog" class="toc-link" data-section="jfrog">
+      <span class="toc-icon">🏭</span> JFrog Artifactory
+    </a>
+    <div class="toc-sub">
+      <a href="#jfrog-commands" class="toc-link">Lệnh cơ bản</a>
+      <a href="#jfrog-quickref" class="toc-link">Quick Reference</a>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="container">
+
+<!-- ===== TUẦN 1-2: CƠ BẢN ===== -->
+<div class="section" id="week1">
+  <div class="section-header">
+    <div class="section-num" style="background:var(--blue-dim);color:var(--blue-light)">01</div>
+    <div>
+      
+      <h2>Cấu trúc Helm Chart, Values & Templates</h2>
+    </div>
+  </div>
+
+  <!-- Helm là gì -->
+  <div class="card" style="border-color:rgba(59,130,246,0.3)" id="week1-whatishelm">
+    <h3>🚀 Helm là gì?</h3>
+    <p>Helm là <strong style="color:var(--blue-light)">package manager cho Kubernetes</strong> — giống như <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">apt</code> với Debian hay <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">brew</code> với macOS. Helm giúp bạn đóng gói, version hóa và deploy ứng dụng Kubernetes theo cách nhất quán, tái sử dụng được.</p>
+  </div>
+
+  <div class="flow" style="margin:1.5rem 0">
+    <div class="flow-box" style="border-color:rgba(59,130,246,0.3);color:var(--blue-light)">📝 Chart (Template)</div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box" style="border-color:rgba(168,85,247,0.3);color:var(--purple)">⚙️ values.yaml</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:rgba(20,184,166,0.3);color:var(--teal)">🔧 helm install</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:rgba(34,197,94,0.3);color:var(--green)">☸️ K8s Manifests</div>
+  </div>
+
+  <!-- Cấu trúc thư mục -->
+  <h3 id="week1-structure" style="margin:2rem 0 0.6rem;font-size:1.1rem">📁 Cấu trúc thư mục Helm Chart</h3>
+  <p style="margin:0 0 0.8rem;color:var(--text2);font-size:13px;line-height:1.6">Helm chart là bộ khung gồm metadata, giá trị mặc định và các template render thành manifest Kubernetes.</p>
+  <div class="tree">
+    <div><span class="dir">my-app/</span></div>
+    <div>├── <span class="highlight">Chart.yaml</span> <span class="comment"># Metadata: tên, version, appVersion</span></div>
+    <div>├── <span class="highlight">values.yaml</span> <span class="comment"># Giá trị mặc định dùng cho templates</span></div>
+    <div>├── <span class="dir">charts/</span> <span class="comment"># Dependency charts / sub-charts</span></div>
+    <div>│   └── <span class="file">redis-17.x.x.tgz</span></div>
+    <div>├── <span class="dir">templates/</span> <span class="comment"># Manifest Kubernetes dạng Go template</span></div>
+    <div>│   ├── <span class="file">deployment.yaml</span></div>
+    <div>│   ├── <span class="file">service.yaml</span></div>
+    <div>│   ├── <span class="file">ingress.yaml</span></div>
+    <div>│   ├── <span class="file">configmap.yaml</span></div>
+    <div>│   ├── <span class="file">_helpers.tpl</span> <span class="comment"># Named template dùng lại</span></div>
+    <div>│   ├── <span class="file">NOTES.txt</span> <span class="comment"># Ghi chú hiển thị sau khi install</span></div>
+    <div>│   └── <span class="file">hpa.yaml</span> <span class="comment"># Horizontal Pod Autoscaler</span></div>
+    <div>└── <span class="file">.helmignore</span> <span class="comment"># File bỏ qua khi package chart</span></div>
+  </div>
+  <p style="margin-top:0.6rem;color:var(--text2);font-size:12px;line-height:1.6"><strong>Ghi nhớ:</strong> <span class="highlight">Chart.yaml</span> là “thẻ nhận diện”, <span class="highlight">values.yaml</span> là “cấu hình”, và <span class="dir">templates/</span> là “bản thiết kế” render ra Kubernetes manifests.</p>
+
+  <!-- Chart.yaml -->
+  <h3 id="week1-chartyaml" style="margin:2rem 0 1rem;font-size:1.1rem">📄 Chart.yaml — Metadata của Chart</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots">
+        <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+      </div>
+      <span>Chart.yaml</span>
+    </div>
+    <pre><span class="k">apiVersion</span>: <span class="s">v2</span>                      <span class="c"># Helm 3 dùng v2</span>
+<span class="k">name</span>: <span class="s">my-app</span>                        <span class="c"># Tên chart</span>
+<span class="k">description</span>: <span class="s">A Helm chart for my app</span>
+<span class="k">type</span>: <span class="s">application</span>                   <span class="c"># application | library</span>
+<span class="k">version</span>: <span class="v">0.1.0</span>                      <span class="c"># Chart version (SemVer)</span>
+<span class="k">appVersion</span>: <span class="s">"1.0.0"</span>                <span class="c"># App version (hiển thị)</span>
+<span class="k">dependencies</span>:
+  - <span class="k">name</span>: <span class="s">redis</span>
+    <span class="k">version</span>: <span class="s">"17.x.x"</span>
+    <span class="k">repository</span>: <span class="s">https://charts.bitnami.com/bitnami</span>
+    <span class="k">condition</span>: <span class="s">redis.enabled</span>       <span class="c"># Enable/disable bằng values</span></pre>
+  </div>
+
+  <!-- values.yaml -->
+  <h3 id="week1-values" style="margin:2rem 0 1rem;font-size:1.1rem">⚙️ values.yaml — Cấu hình mặc định</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>values.yaml</span>
+    </div>
+    <pre><span class="c"># Cấu hình replica và image</span>
+<span class="k">replicaCount</span>: <span class="v">2</span>
+
+<span class="k">image</span>:
+  <span class="k">repository</span>: <span class="s">nginx</span>
+  <span class="k">tag</span>: <span class="s">"1.25.3"</span>
+  <span class="k">pullPolicy</span>: <span class="s">IfNotPresent</span>
+
+<span class="k">service</span>:
+  <span class="k">type</span>: <span class="s">ClusterIP</span>            <span class="c"># ClusterIP | NodePort | LoadBalancer</span>
+  <span class="k">port</span>: <span class="v">80</span>
+
+<span class="k">ingress</span>:
+  <span class="k">enabled</span>: <span class="v">false</span>
+  <span class="k">hostname</span>: <span class="s">myapp.example.com</span>
+  <span class="k">annotations</span>: {}
+
+<span class="k">resources</span>:
+  <span class="k">limits</span>:
+    <span class="k">cpu</span>: <span class="s">500m</span>
+    <span class="k">memory</span>: <span class="s">256Mi</span>
+  <span class="k">requests</span>:
+    <span class="k">cpu</span>: <span class="s">100m</span>
+    <span class="k">memory</span>: <span class="s">128Mi</span>
+
+<span class="k">autoscaling</span>:
+  <span class="k">enabled</span>: <span class="v">false</span>
+  <span class="k">minReplicas</span>: <span class="v">2</span>
+  <span class="k">maxReplicas</span>: <span class="v">10</span>
+
+<span class="k">redis</span>:
+  <span class="k">enabled</span>: <span class="v">true</span>
+  <span class="k">auth</span>:
+    <span class="k">password</span>: <span class="s">"changeme"</span>    <span class="c"># ⚠️ Không để plaintext trong production!</span></pre>
+  </div>
+
+  <!-- Priority của values -->
+  <div class="info-box tip">
+    <strong>💡 Thứ tự ưu tiên của Values (thấp → cao)</strong>
+    values.yaml mặc định → values.yaml của parent chart → file -f myvals.yaml → tham số --set foo=bar
+  </div>
+
+  <!-- Templates -->
+  <h3 id="week1-templates" style="margin:2rem 0 1rem;font-size:1.1rem">📋 Templates — Go Template Engine</h3>
+  <div class="grid-2">
+    <div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <span>templates/deployment.yaml</span>
+        </div>
+        <pre><span class="k">apiVersion</span>: <span class="s">apps/v1</span>
+<span class="k">kind</span>: <span class="s">Deployment</span>
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="t">{{ include "myapp.fullname" . }}</span>
+  <span class="k">labels</span>: <span class="t">{{- include "myapp.labels" . | nindent 4 }}</span>
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: <span class="t">{{ .Values.replicaCount }}</span>
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: <span class="t">{{- include "myapp.selectorLabels" . | nindent 6 }}</span>
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+        - <span class="k">name</span>: <span class="t">{{ .Chart.Name }}</span>
+          <span class="k">image</span>: <span class="s">"<span class="t">{{ .Values.image.repository }}</span>:<span class="t">{{ .Values.image.tag }}</span>"</span>
+          <span class="k">imagePullPolicy</span>: <span class="t">{{ .Values.image.pullPolicy }}</span>
+          <span class="k">ports</span>:
+            - <span class="k">containerPort</span>: <span class="t">{{ .Values.service.port }}</span>
+          <span class="k">resources</span>: <span class="t">{{- toYaml .Values.resources | nindent 12 }}</span>
+<span class="t">{{- if .Values.autoscaling.enabled }}</span>
+          <span class="c"># HPA sẽ quản lý replicas</span>
+<span class="t">{{- end }}</span></pre>
+      </div>
+    </div>
+    <div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <span>templates/_helpers.tpl</span>
+        </div>
+        <pre><span class="c">{{/*
+  Named templates — reusable partials
+*/}}</span>
+
+<span class="t">{{- define "myapp.fullname" -}}</span>
+<span class="t">{{- .Release.Name | trunc 63 | trimSuffix "-" }}</span>
+<span class="t">{{- end }}</span>
+
+<span class="t">{{- define "myapp.labels" -}}</span>
+<span class="k">helm.sh/chart</span>: <span class="t">{{ .Chart.Name }}-{{ .Chart.Version }}</span>
+<span class="t">{{ include "myapp.selectorLabels" . }}</span>
+<span class="k">app.kubernetes.io/managed-by</span>: <span class="t">{{ .Release.Service }}</span>
+<span class="t">{{- end }}</span>
+
+<span class="t">{{- define "myapp.selectorLabels" -}}</span>
+<span class="k">app.kubernetes.io/name</span>: <span class="t">{{ .Chart.Name }}</span>
+<span class="k">app.kubernetes.io/instance</span>: <span class="t">{{ .Release.Name }}</span>
+<span class="t">{{- end }}</span></pre>
+      </div>
+
+      <div class="card" style="margin-top:0">
+        <h3>🔑 Built-in Objects</h3>
+        <table>
+          <tr><th>Object</th><th>Ví dụ</th></tr>
+          <tr><td><code style="color:var(--t)">.Release.Name</code></td><td style="color:var(--text2)">my-release</td></tr>
+          <tr><td><code style="color:var(--t)">.Release.Namespace</code></td><td style="color:var(--text2)">production</td></tr>
+          <tr><td><code style="color:var(--t)">.Chart.Name</code></td><td style="color:var(--text2)">my-app</td></tr>
+          <tr><td><code style="color:var(--t)">.Chart.Version</code></td><td style="color:var(--text2)">0.1.0</td></tr>
+          <tr><td><code style="color:var(--t)">.Values.image.tag</code></td><td style="color:var(--text2)">1.25.3</td></tr>
+          <tr><td><code style="color:var(--t)">.Capabilities.KubeVersion</code></td><td style="color:var(--text2)">v1.28.0</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- helm template command -->
+  <h3 id="week1-helmtemplate" style="margin:2rem 0 1rem;font-size:1.1rem">🔍 helm template — Debug trước khi deploy</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>Terminal</span>
+    </div>
+    <pre><span class="c"># Render templates thành YAML thuần (không deploy)</span>
+<span class="o">helm template</span> <span class="s">my-release</span> <span class="s">./my-app</span>
+
+<span class="c"># Với custom values file</span>
+<span class="o">helm template</span> <span class="s">my-release</span> <span class="s">./my-app</span> <span class="b">-f</span> values-prod.yaml
+
+<span class="c"># Override từng giá trị</span>
+<span class="o">helm template</span> <span class="s">my-release</span> <span class="s">./my-app</span> <span class="b">--set</span> image.tag=v2.0.0
+
+<span class="c"># Dry-run với debug (kiểm tra logic phức tạp)</span>
+<span class="o">helm install</span> my-release ./my-app <span class="b">--dry-run</span> <span class="b">--debug</span>
+
+<span class="c"># Lint — kiểm tra cú pháp</span>
+<span class="o">helm lint</span> ./my-app</pre>
+  </div>
+
+  <!-- Template functions -->
+  <h3 id="week1-functions" style="margin:2rem 0 1rem;font-size:1.1rem">⚡ Template Functions thường dùng</h3>
+  <div class="grid-3">
+    <div class="card">
+      <h3 style="color:var(--blue-light)">String Functions</h3>
+      <div style="font-family:monospace;font-size:12px;color:var(--text2);line-height:2">
+        <div><span style="color:var(--t)">trunc 63</span> — cắt chuỗi</div>
+        <div><span style="color:var(--t)">trimSuffix "-"</span> — bỏ suffix</div>
+        <div><span style="color:var(--t)">upper/lower</span> — đổi hoa/thường</div>
+        <div><span style="color:var(--t)">quote</span> — thêm dấu ngoặc</div>
+        <div><span style="color:var(--t)">replace "a" "b"</span> — thay thế</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--purple)">Flow Control</h3>
+      <div style="font-family:monospace;font-size:12px;color:var(--text2);line-height:2">
+        <div><span style="color:var(--t)">if/else/end</span> — điều kiện</div>
+        <div><span style="color:var(--t)">range</span> — vòng lặp</div>
+        <div><span style="color:var(--t)">with</span> — scope thay đổi</div>
+        <div><span style="color:var(--t)">define</span> — named template</div>
+        <div><span style="color:var(--t)">include</span> — gọi template</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--teal)">Data Functions</h3>
+      <div style="font-family:monospace;font-size:12px;color:var(--text2);line-height:2">
+        <div><span style="color:var(--t)">toYaml</span> — convert sang YAML</div>
+        <div><span style="color:var(--t)">fromYaml</span> — parse YAML</div>
+        <div><span style="color:var(--t)">nindent N</span> — indent + newline</div>
+        <div><span style="color:var(--t)">default "val"</span> — giá trị mặc định</div>
+        <div><span style="color:var(--t)">required "msg"</span> — bắt buộc</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TUẦN 3: NÂNG CAO ===== -->
+<div class="section" id="week3">
+  <div class="section-header">
+    <div class="section-num" style="background:var(--purple-dim);color:var(--purple)">02</div>
+    <div>
+      
+      <h2>Upgrade, Rollback, Dependency & Secret Management</h2>
+    </div>
+  </div>
+
+  <!-- Upgrade & Rollback -->
+  <h3 id="week3-upgrade" style="margin-bottom:1rem;font-size:1.1rem">🔄 Upgrade & Rollback Lifecycle</h3>
+
+  <div class="flow" style="margin:1rem 0 1.5rem">
+    <div class="flow-box" style="border-color:rgba(59,130,246,0.3);color:var(--blue-light)">Revision 1<br><small style="color:var(--text3)">Initial Install</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:rgba(168,85,247,0.3);color:var(--purple)">Revision 2<br><small style="color:var(--text3)">Upgrade A</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:rgba(239,68,68,0.3);color:var(--red)">Revision 3<br><small style="color:var(--text3)">❌ Broken</small></div>
+    <div class="flow-arrow">←</div>
+    <div class="flow-box" style="border-color:rgba(34,197,94,0.3);color:var(--green)">Rollback → R2<br><small style="color:var(--text3)">Revision 4</small></div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>Helm Upgrade & Rollback Commands</span>
+    </div>
+    <pre><span class="c"># ─── UPGRADE ───────────────────────────────────────────────</span>
+<span class="c"># Upgrade lên version mới</span>
+<span class="o">helm upgrade</span> my-release ./my-app <span class="b">-f</span> values-prod.yaml
+
+<span class="c"># Upgrade + cài mới nếu chưa tồn tại (idempotent — dùng trong CI/CD)</span>
+<span class="o">helm upgrade</span> <span class="b">--install</span> my-release ./my-app <span class="b">-f</span> values.yaml
+
+<span class="c"># --atomic: tự rollback nếu deploy thất bại</span>
+<span class="o">helm upgrade</span> <span class="b">--install</span> <span class="b">--atomic</span> <span class="b">--timeout</span> 5m \
+  my-release ./my-app <span class="b">-f</span> values-prod.yaml
+
+<span class="c"># Preview thay đổi trước khi apply (dùng helm-diff plugin)</span>
+<span class="o">helm diff upgrade</span> my-release ./my-app <span class="b">-f</span> values.yaml
+
+<span class="c"># ─── ROLLBACK ──────────────────────────────────────────────</span>
+<span class="c"># Xem lịch sử releases</span>
+<span class="o">helm history</span> my-release
+
+<span class="c"># Rollback về revision cụ thể</span>
+<span class="o">helm rollback</span> my-release <span class="v">2</span>
+
+<span class="c"># Rollback về revision ngay trước đó</span>
+<span class="o">helm rollback</span> my-release <span class="v">0</span>
+
+<span class="c"># ─── QUẢN LÝ ───────────────────────────────────────────────</span>
+<span class="o">helm list</span> <span class="b">-A</span>                    <span class="c"># Xem tất cả releases</span>
+<span class="o">helm status</span> my-release          <span class="c"># Trạng thái release</span>
+<span class="o">helm uninstall</span> my-release       <span class="c"># Xóa release</span></pre>
+  </div>
+
+  <div class="info-box warn">
+    <strong>⚠️ Best Practice cho Production</strong>
+    Luôn dùng <code>--atomic</code> trong CI/CD. Luôn pin chart version cụ thể (không dùng "latest"). Dùng <code>helm diff</code> để review thay đổi trước khi apply.
+  </div>
+
+  <!-- Dependency Chart -->
+  <h3 id="week3-dependency" style="margin:2rem 0 1rem;font-size:1.1rem">📦 Dependency Charts</h3>
+  <div class="grid-2">
+    <div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <span>Chart.yaml — Khai báo dependencies</span>
+        </div>
+        <pre><span class="k">dependencies</span>:
+  - <span class="k">name</span>: <span class="s">postgresql</span>
+    <span class="k">version</span>: <span class="s">"13.x.x"</span>
+    <span class="k">repository</span>: <span class="s">https://charts.bitnami.com/bitnami</span>
+    <span class="k">condition</span>: <span class="s">postgresql.enabled</span>
+
+  - <span class="k">name</span>: <span class="s">redis</span>
+    <span class="k">version</span>: <span class="s">"18.x.x"</span>
+    <span class="k">repository</span>: <span class="s">https://charts.bitnami.com/bitnami</span>
+    <span class="k">condition</span>: <span class="s">redis.enabled</span></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <span>values.yaml — Config cho subchart</span>
+        </div>
+        <pre><span class="k">postgresql</span>:
+  <span class="k">enabled</span>: <span class="v">true</span>
+  <span class="k">auth</span>:
+    <span class="k">username</span>: <span class="s">myuser</span>
+    <span class="k">password</span>: <span class="s">mypassword</span>  <span class="c"># → dùng secret!</span>
+    <span class="k">database</span>: <span class="s">mydb</span>
+  <span class="k">primary</span>:
+    <span class="k">persistence</span>:
+      <span class="k">size</span>: <span class="s">10Gi</span>
+
+<span class="k">redis</span>:
+  <span class="k">enabled</span>: <span class="v">false</span></pre>
+      </div>
+    </div>
+
+    <div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <span>Terminal — Dependency workflow</span>
+        </div>
+        <pre><span class="c"># Thêm repo của dependency</span>
+<span class="o">helm repo add</span> bitnami \
+  https://charts.bitnami.com/bitnami
+<span class="o">helm repo update</span>
+
+<span class="c"># Tải dependencies về thư mục charts/</span>
+<span class="o">helm dependency update</span> ./my-app
+
+<span class="c"># Kiểm tra dependency tree</span>
+<span class="o">helm dependency list</span> ./my-app
+
+<span class="c"># Build (đóng gói)</span>
+<span class="o">helm dependency build</span> ./my-app</pre>
+      </div>
+
+      <div class="card">
+        <h3>🌲 Sau khi update</h3>
+        <div class="tree" style="font-size:12px">
+<span class="dir">my-app/</span>
+├── Chart.yaml
+├── <span class="highlight">Chart.lock</span>     <span class="comment"># Lock file (commit vào git!)</span>
+├── <span class="dir">charts/</span>
+│   ├── <span class="file">postgresql-13.x.x.tgz</span>
+│   └── <span class="file">redis-18.x.x.tgz</span>
+└── ...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secret Management -->
+  <h3 id="week3-secrets" style="margin:2rem 0 1rem;font-size:1.1rem">🔐 Secret Management</h3>
+
+  <div class="grid-3">
+    <div class="card" style="border-color:rgba(239,68,68,0.3)">
+      <h3 style="color:var(--red)">❌ Không làm thế này</h3>
+      <pre style="background:#0d1117;border-radius:6px;padding:10px;font-size:12px;margin-top:8px"><span class="c"># values.yaml</span>
+<span class="k">database</span>:
+  <span class="k">password</span>: <span class="s">my-secret-123</span>
+<span class="c"># ⚠️ Plain text trong Git!</span></pre>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,0.3)">
+      <h3 style="color:var(--amber)">⚡ Helm Secrets Plugin</h3>
+      <pre style="background:#0d1117;border-radius:6px;padding:10px;font-size:12px;margin-top:8px"><span class="c"># Mã hóa với SOPS + Age</span>
+<span class="o">helm secrets</span> enc secrets.yaml
+<span class="o">helm secrets</span> install \
+  my-release ./chart \
+  <span class="b">-f</span> secrets.yaml</pre>
+    </div>
+    <div class="card" style="border-color:rgba(34,197,94,0.3)">
+      <h3 style="color:var(--green)">✅ External Secrets</h3>
+      <pre style="background:#0d1117;border-radius:6px;padding:10px;font-size:12px;margin-top:8px"><span class="c"># Kéo từ AWS/GCP/Vault</span>
+<span class="k">apiVersion</span>: <span class="s">external-secrets.io/v1</span>
+<span class="k">kind</span>: <span class="s">ExternalSecret</span>
+<span class="k">spec</span>:
+  <span class="k">secretStoreRef</span>:
+    <span class="k">name</span>: <span class="s">aws-secretsmanager</span></pre>
+    </div>
+  </div>
+
+  <div class="code-block" style="margin-top:1rem">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>templates/secret.yaml — K8s Secret từ Values</span>
+    </div>
+    <pre><span class="k">apiVersion</span>: <span class="s">v1</span>
+<span class="k">kind</span>: <span class="s">Secret</span>
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="t">{{ include "myapp.fullname" . }}-secret</span>
+<span class="k">type</span>: <span class="s">Opaque</span>
+<span class="k">data</span>:
+  <span class="c"># b64enc tự động encode sang base64</span>
+  <span class="k">db-password</span>: <span class="t">{{ .Values.database.password | b64enc | quote }}</span>
+  <span class="k">api-key</span>: <span class="t">{{ .Values.externalApi.key | b64enc | quote }}</span>
+<span class="c">
+# Cách đúng: dùng existingSecret để reference K8s Secret có sẵn</span>
+<span class="t">{{- if not .Values.existingSecret }}</span>
+<span class="c"># Tạo secret mới</span>
+<span class="t">{{- else }}</span>
+<span class="c"># Reference secret đã có: valueFrom.secretKeyRef.name</span>
+<span class="t">{{- end }}</span></pre>
+  </div>
+
+  <div class="info-box tip">
+    <strong>💡 Recommended: External Secrets Operator (ESO)</strong>
+    ESO là lựa chọn tốt nhất cho production — tích hợp với AWS Secrets Manager, GCP Secret Manager, HashiCorp Vault. Nó có nhiều GitHub stars hơn helm-secrets và Vault Secrets Operator, và hoạt động tốt với ArgoCD.
+  </div>
+</div>
+
+<!-- ===== TUẦN 4: ARGOCD & MULTI-ENV ===== -->
+<div class="section" id="week4">
+  <div class="section-header">
+    <div class="section-num" style="background:var(--teal-dim);color:var(--teal)">03</div>
+    <div>
+      
+      <h2>Helm + ArgoCD & Multi-Environment</h2>
+    </div>
+  </div>
+
+  <!-- GitOps Flow -->
+  <h3 id="week4-gitops" style="margin-bottom:1rem;font-size:1.1rem">🔄 GitOps Flow: Helm + ArgoCD</h3>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div style="background:var(--blue-dim);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px 16px;color:var(--blue-light);font-weight:600;font-size:13px">👨‍💻 Developer<br><small style="color:var(--text3);font-weight:400">Push code</small></div>
+      </div>
+      <div style="color:var(--text3);font-size:20px">→</div>
+      <div style="text-align:center">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-weight:600;font-size:13px">🐙 GitHub<br><small style="color:var(--text3);font-weight:400">CI builds image</small></div>
+      </div>
+      <div style="color:var(--text3);font-size:20px">→</div>
+      <div style="text-align:center">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-weight:600;font-size:13px">📦 Registry<br><small style="color:var(--text3);font-weight:400">Docker image</small></div>
+      </div>
+      <div style="color:var(--text3);font-size:20px">→</div>
+      <div style="text-align:center">
+        <div style="background:var(--purple-dim);border:1px solid rgba(168,85,247,0.3);border-radius:8px;padding:12px 16px;color:var(--purple);font-weight:600;font-size:13px">📝 Git (values)<br><small style="color:var(--text3);font-weight:400">Update image.tag</small></div>
+      </div>
+      <div style="color:var(--text3);font-size:20px">→</div>
+      <div style="text-align:center">
+        <div style="background:var(--teal-dim);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:12px 16px;color:var(--teal);font-weight:600;font-size:13px">🔄 ArgoCD<br><small style="color:var(--text3);font-weight:400">Detect & sync</small></div>
+      </div>
+      <div style="color:var(--text3);font-size:20px">→</div>
+      <div style="text-align:center">
+        <div style="background:var(--green-dim);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 16px;color:var(--green);font-weight:600;font-size:13px">☸️ Kubernetes<br><small style="color:var(--text3);font-weight:400">Deploy!</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-environment structure -->
+  <h3 id="week4-structure" style="margin:2rem 0 1rem;font-size:1.1rem">🌍 Cấu trúc Multi-Environment</h3>
+  <div class="tree">
+<span class="dir">gitops-config/</span>             <span class="comment"># Repo riêng cho config</span>
+├── <span class="dir">argocd/</span>
+│   ├── <span class="dir">dev/</span>
+│   │   └── <span class="highlight">my-app.yaml</span>        <span class="comment"># ArgoCD Application (dev)</span>
+│   ├── <span class="dir">staging/</span>
+│   │   └── <span class="highlight">my-app.yaml</span>        <span class="comment"># ArgoCD Application (staging)</span>
+│   └── <span class="dir">prod/</span>
+│       └── <span class="highlight">my-app.yaml</span>        <span class="comment"># ArgoCD Application (prod)</span>
+└── <span class="dir">environments/</span>
+    ├── <span class="dir">dev/</span>
+    │   └── <span class="highlight">values.yaml</span>        <span class="comment"># Dev overrides</span>
+    ├── <span class="dir">staging/</span>
+    │   └── <span class="highlight">values.yaml</span>        <span class="comment"># Staging overrides</span>
+    └── <span class="dir">prod/</span>
+        └── <span class="highlight">values.yaml</span>        <span class="comment"># Prod overrides (pinned to tag!)</span>
+  </div>
+
+  <!-- Env comparison -->
+  <h3 id="week4-envs" style="margin:2rem 0 1rem;font-size:1.1rem">⚖️ So sánh cấu hình từng môi trường</h3>
+  <div class="env-grid">
+    <div class="env-card">
+      <div class="env-header" style="background:var(--blue-dim);color:var(--blue-light)">
+        <span>🔵 DEV</span>
+        <span class="badge badge-blue">environments/dev/</span>
+      </div>
+      <div class="env-body">
+        <div class="env-row"><span class="key">replicas</span><span class="val">1</span></div>
+        <div class="env-row"><span class="key">image.tag</span><span class="val">latest</span></div>
+        <div class="env-row"><span class="key">resources.cpu</span><span class="val">100m/500m</span></div>
+        <div class="env-row"><span class="key">ingress.host</span><span class="val">dev.myapp.io</span></div>
+        <div class="env-row"><span class="key">autoscaling</span><span class="val" style="color:var(--red)">false</span></div>
+        <div class="env-row"><span class="key">debug.enabled</span><span class="val" style="color:var(--green)">true</span></div>
+        <div class="env-row"><span class="key">targetRevision</span><span class="val">HEAD</span></div>
+      </div>
+    </div>
+    <div class="env-card">
+      <div class="env-header" style="background:var(--amber-dim);color:var(--amber)">
+        <span>🟡 STAGING</span>
+        <span class="badge badge-amber">environments/staging/</span>
+      </div>
+      <div class="env-body">
+        <div class="env-row"><span class="key">replicas</span><span class="val">2</span></div>
+        <div class="env-row"><span class="key">image.tag</span><span class="val">v1.2.3-rc</span></div>
+        <div class="env-row"><span class="key">resources.cpu</span><span class="val">200m/1000m</span></div>
+        <div class="env-row"><span class="key">ingress.host</span><span class="val">staging.myapp.io</span></div>
+        <div class="env-row"><span class="key">autoscaling</span><span class="val" style="color:var(--amber)">true (2–5)</span></div>
+        <div class="env-row"><span class="key">debug.enabled</span><span class="val" style="color:var(--red)">false</span></div>
+        <div class="env-row"><span class="key">targetRevision</span><span class="val">main</span></div>
+      </div>
+    </div>
+    <div class="env-card">
+      <div class="env-header" style="background:var(--green-dim);color:var(--green)">
+        <span>🟢 PROD</span>
+        <span class="badge badge-green">environments/prod/</span>
+      </div>
+      <div class="env-body">
+        <div class="env-row"><span class="key">replicas</span><span class="val">3</span></div>
+        <div class="env-row"><span class="key">image.tag</span><span class="val">v1.2.3</span></div>
+        <div class="env-row"><span class="key">resources.cpu</span><span class="val">500m/2000m</span></div>
+        <div class="env-row"><span class="key">ingress.host</span><span class="val">myapp.io</span></div>
+        <div class="env-row"><span class="key">autoscaling</span><span class="val" style="color:var(--green)">true (3–20)</span></div>
+        <div class="env-row"><span class="key">debug.enabled</span><span class="val" style="color:var(--red)">false</span></div>
+        <div class="env-row"><span class="key">targetRevision</span><span class="val">v1.2.3 ← pin!</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ArgoCD Application manifest -->
+  <h3 id="week4-argocd" style="margin:2rem 0 1rem;font-size:1.1rem">📋 ArgoCD Application Manifest</h3>
+  <div class="grid-2">
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <span>argocd/prod/my-app.yaml</span>
+      </div>
+      <pre><span class="k">apiVersion</span>: <span class="s">argoproj.io/v1alpha1</span>
+<span class="k">kind</span>: <span class="s">Application</span>
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">myapp-production</span>
+  <span class="k">namespace</span>: <span class="s">argocd</span>
+<span class="k">spec</span>:
+  <span class="k">project</span>: <span class="s">default</span>
+  <span class="k">sources</span>:
+    <span class="c"># Helm chart source</span>
+    - <span class="k">repoURL</span>: <span class="s">https://github.com/org/helm-charts</span>
+      <span class="k">targetRevision</span>: <span class="s">main</span>
+      <span class="k">path</span>: <span class="s">my-app</span>
+      <span class="k">helm</span>:
+        <span class="k">valueFiles</span>:
+          - <span class="s">$values/environments/prod/values.yaml</span>
+    <span class="c"># Config repo riêng (values)</span>
+    - <span class="k">repoURL</span>: <span class="s">https://github.com/org/gitops-config</span>
+      <span class="k">targetRevision</span>: <span class="s">main</span>
+      <span class="k">ref</span>: <span class="s">values</span>
+  <span class="k">destination</span>:
+    <span class="k">server</span>: <span class="s">https://kubernetes.default.svc</span>
+    <span class="k">namespace</span>: <span class="s">production</span>
+  <span class="k">syncPolicy</span>:
+    <span class="k">automated</span>:
+      <span class="k">prune</span>: <span class="v">true</span>
+      <span class="k">selfHeal</span>: <span class="v">true</span>
+    <span class="k">syncOptions</span>:
+      - <span class="s">CreateNamespace=true</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <span>ApplicationSet — Quản lý 3 môi trường cùng lúc</span>
+      </div>
+      <pre><span class="k">apiVersion</span>: <span class="s">argoproj.io/v1alpha1</span>
+<span class="k">kind</span>: <span class="s">ApplicationSet</span>
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">myapp-environments</span>
+<span class="k">spec</span>:
+  <span class="k">generators</span>:
+    - <span class="k">list</span>:
+        <span class="k">elements</span>:
+          - <span class="k">env</span>: <span class="s">dev</span>
+            <span class="k">namespace</span>: <span class="s">dev</span>
+            <span class="k">revision</span>: <span class="s">HEAD</span>
+          - <span class="k">env</span>: <span class="s">staging</span>
+            <span class="k">namespace</span>: <span class="s">staging</span>
+            <span class="k">revision</span>: <span class="s">main</span>
+          - <span class="k">env</span>: <span class="s">prod</span>
+            <span class="k">namespace</span>: <span class="s">production</span>
+            <span class="k">revision</span>: <span class="s">v1.2.3</span>
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">name</span>: <span class="s">'myapp-{{env}}'</span>
+    <span class="k">spec</span>:
+      <span class="k">destination</span>:
+        <span class="k">namespace</span>: <span class="s">'{{namespace}}'</span>
+      <span class="k">source</span>:
+        <span class="k">helm</span>:
+          <span class="k">valueFiles</span>:
+            - <span class="s">environments/{{env}}/values.yaml</span></pre>
+    </div>
+  </div>
+
+  <div class="info-box tip">
+    <strong>💡 ArgoCD Best Practices</strong>
+    Mỗi environment dùng folder riêng trong Git. Pin prod vào tag cụ thể (không dùng HEAD). Không lưu secret plain text — dùng sealed-secrets, external-secrets, hoặc SOPS. Dùng ApplicationSet để tránh lặp lại Application manifest cho nhiều môi trường.
+  </div>
+</div>
+
+<!-- ===== THỰC HÀNH ===== -->
+<div class="section" id="practice">
+  <div class="section-header">
+    <div class="section-num" style="background:var(--amber-dim);color:var(--amber)">04</div>
+    <div>
+      
+      <h2>Tự build Chart: Nginx, Spring Boot, Node.js API</h2>
+    </div>
+  </div>
+
+  <div class="grid-3" id="practice-nginx" style="margin-bottom:2rem">
+    <!-- Nginx -->
+    <div class="app-card">
+      <div class="app-card-header">
+        <div class="app-icon" style="background:var(--green-dim)">🌿</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Nginx</div>
+          <div style="font-size:12px;color:var(--text3)">Static web server</div>
+        </div>
+        <div class="badge badge-green" style="margin-left:auto">Beginner</div>
+      </div>
+      <div class="app-card-body">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Chart đơn giản nhất — học cấu trúc cơ bản, ConfigMap cho nginx.conf, Service + Ingress</div>
+        <div style="font-family:monospace;font-size:11px;background:var(--bg3);border-radius:6px;padding:10px;line-height:1.8">
+          <div style="color:var(--text3)"># Tạo chart</div>
+          <div style="color:var(--blue-light)">helm create nginx-chart</div>
+          <div style="color:var(--text3)"># Deploy</div>
+          <div style="color:var(--blue-light)">helm install my-nginx ./nginx-chart</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spring Boot -->
+    <div class="app-card">
+      <div class="app-card-header">
+        <div class="app-icon" style="background:var(--blue-dim)">☕</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Spring Boot</div>
+          <div style="font-size:12px;color:var(--text3)">Java backend API</div>
+        </div>
+        <div class="badge badge-blue" style="margin-left:auto">Intermediate</div>
+      </div>
+      <div class="app-card-body">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Phức tạp hơn — JVM flags, health checks, database connection, Secret cho credentials</div>
+        <div style="font-family:monospace;font-size:11px;background:var(--bg3);border-radius:6px;padding:10px;line-height:1.8">
+          <div style="color:var(--text3)"># Với PostgreSQL dependency</div>
+          <div style="color:var(--blue-light)">helm install spring-api ./spring-chart \</div>
+          <div style="color:var(--blue-light)">  -f values-prod.yaml \</div>
+          <div style="color:var(--blue-light)">  --set image.tag=v1.0.0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Node.js -->
+    <div class="app-card">
+      <div class="app-card-header">
+        <div class="app-icon" style="background:var(--purple-dim)">🟣</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">Node.js API</div>
+          <div style="font-size:12px;color:var(--text3)">REST/GraphQL API</div>
+        </div>
+        <div class="badge badge-purple" style="margin-left:auto">Intermediate</div>
+      </div>
+      <div class="app-card-body">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">HPA, Redis dependency, env vars từ Secret, readiness/liveness probes</div>
+        <div style="font-family:monospace;font-size:11px;background:var(--bg3);border-radius:6px;padding:10px;line-height:1.8">
+          <div style="color:var(--text3)"># Với Redis + HPA</div>
+          <div style="color:var(--blue-light)">helm install node-api ./node-chart \</div>
+          <div style="color:var(--blue-light)">  --set autoscaling.enabled=true \</div>
+          <div style="color:var(--blue-light)">  --set redis.enabled=true</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spring Boot chi tiết -->
+  <h3 id="practice-spring" style="margin-bottom:1rem;font-size:1.1rem">☕ Spring Boot Chart — Values mẫu đầy đủ</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>spring-chart/values.yaml</span>
+    </div>
+    <pre><span class="k">image</span>:
+  <span class="k">repository</span>: <span class="s">myregistry.io/spring-app</span>
+  <span class="k">tag</span>: <span class="s">"latest"</span>
+
+<span class="k">replicaCount</span>: <span class="v">2</span>
+
+<span class="k">service</span>:
+  <span class="k">type</span>: <span class="s">ClusterIP</span>
+  <span class="k">port</span>: <span class="v">8080</span>
+
+<span class="c"># Spring Boot health check endpoints</span>
+<span class="k">livenessProbe</span>:
+  <span class="k">httpGet</span>:
+    <span class="k">path</span>: <span class="s">/actuator/health/liveness</span>
+    <span class="k">port</span>: <span class="v">8080</span>
+  <span class="k">initialDelaySeconds</span>: <span class="v">60</span>   <span class="c"># JVM cần thời gian warm up</span>
+  <span class="k">periodSeconds</span>: <span class="v">15</span>
+
+<span class="k">readinessProbe</span>:
+  <span class="k">httpGet</span>:
+    <span class="k">path</span>: <span class="s">/actuator/health/readiness</span>
+    <span class="k">port</span>: <span class="v">8080</span>
+  <span class="k">initialDelaySeconds</span>: <span class="v">30</span>
+
+<span class="k">env</span>:
+  <span class="k">SPRING_PROFILES_ACTIVE</span>: <span class="s">production</span>
+  <span class="k">SERVER_PORT</span>: <span class="s">"8080"</span>
+
+<span class="c"># Secrets (nên dùng ExternalSecret trong production)</span>
+<span class="k">secrets</span>:
+  <span class="k">DATABASE_URL</span>: <span class="s">jdbc:postgresql://db:5432/mydb</span>
+  <span class="k">DATABASE_PASSWORD</span>: <span class="s">changeme</span>
+
+<span class="k">postgresql</span>:
+  <span class="k">enabled</span>: <span class="v">true</span>
+  <span class="k">auth</span>:
+    <span class="k">database</span>: <span class="s">mydb</span>
+
+<span class="k">resources</span>:
+  <span class="k">requests</span>:
+    <span class="k">cpu</span>: <span class="s">500m</span>
+    <span class="k">memory</span>: <span class="s">512Mi</span>    <span class="c"># JVM cần nhiều RAM hơn</span>
+  <span class="k">limits</span>:
+    <span class="k">cpu</span>: <span class="s">2000m</span>
+    <span class="k">memory</span>: <span class="s">1Gi</span>
+
+<span class="k">jvmOptions</span>: <span class="s">"-Xms256m -Xmx512m -XX:+UseContainerSupport"</span></pre>
+  </div>
+
+  <!-- Checklist -->
+  <h3 id="practice-checklist" style="margin:2rem 0 1rem;font-size:1.1rem">✅ Checklist tự build Chart</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Cấu trúc Chart cơ bản</h3>
+      <div style="font-size:13px;color:var(--text2);line-height:2.2">
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">Chart.yaml</code> với đúng apiVersion, name, version</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">values.yaml</code> đầy đủ, có comments</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">templates/deployment.yaml</code> với probes</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">templates/service.yaml</code></div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">templates/ingress.yaml</code> (optional)</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">templates/_helpers.tpl</code> named templates</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">templates/NOTES.txt</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🔒 Production Readiness</h3>
+      <div style="font-size:13px;color:var(--text2);line-height:2.2">
+        <div>☐ Resources limits/requests đặt đúng</div>
+        <div>☐ Liveness & Readiness probes</div>
+        <div>☐ Secrets không hardcode trong values</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">helm lint</code> không có errors</div>
+        <div>☐ <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">helm template</code> render đúng</div>
+        <div>☐ HPA cấu hình nếu cần autoscaling</div>
+        <div>☐ PodDisruptionBudget cho HA</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== JFROG ARTIFACTORY ===== -->
+<div class="section" id="jfrog">
+  <div class="section-header">
+    <div class="section-num" style="background:var(--coral-dim,#3d1a0a);color:#fb923c">05</div>
+    <div>
+      
+      <h2>JFrog Artifactory — Helm Chart Repository</h2>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:rgba(251,146,60,0.3);margin-bottom:1.5rem">
+    <h3>🏭 JFrog Artifactory là gì?</h3>
+    <p>JFrog Artifactory là universal artifact repository — lưu trữ Helm charts, Docker images, npm packages trong một nơi. Dùng làm private Helm repository cho team/enterprise.</p>
+  </div>
+
+  <div class="code-block" id="jfrog-commands">
+    <div class="code-header">
+      <div class="code-dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <span>Làm việc với JFrog Artifactory Helm Repository</span>
+    </div>
+    <pre><span class="c"># ─── THÊM REPO JFROG ───────────────────────────────────────</span>
+<span class="o">helm repo add</span> my-jfrog \
+  https://<span class="s">&lt;server&gt;</span>/artifactory/<span class="s">&lt;repo-name&gt;</span> \
+  <span class="b">--username</span> <span class="s">$JFROG_USER</span> \
+  <span class="b">--password</span> <span class="s">$JFROG_PASSWORD</span>
+
+<span class="o">helm repo update</span>
+
+<span class="c"># ─── TÌM KIẾM & CÀI ĐẶT ─────────────────────────────────</span>
+<span class="o">helm search repo</span> my-jfrog/my-app
+<span class="o">helm install</span> my-release my-jfrog/my-app <span class="b">--version</span> 1.2.3
+
+<span class="c"># ─── PUSH CHART LÊN JFROG ────────────────────────────────</span>
+<span class="c"># Package chart thành .tgz</span>
+<span class="o">helm package</span> ./my-app
+
+<span class="c"># Upload lên Artifactory</span>
+<span class="o">curl</span> <span class="b">-u</span> <span class="s">$USER:$PASS</span> <span class="b">-T</span> my-app-0.1.0.tgz \
+  https://<span class="s">&lt;server&gt;</span>/artifactory/<span class="s">&lt;repo&gt;</span>/my-app-0.1.0.tgz
+
+<span class="c"># Hoặc dùng JFrog CLI</span>
+<span class="o">jf rt upload</span> my-app-0.1.0.tgz <span class="s">&lt;repo-name&gt;/</span>
+
+<span class="c"># ─── SỬ DỤNG TRONG CI/CD ─────────────────────────────────</span>
+<span class="c"># GitHub Actions / GitLab CI</span>
+<span class="o">helm repo add</span> jfrog-helm \
+  <span class="s">"$JFROG_URL/artifactory/$HELM_REPO"</span> \
+  <span class="b">--username</span> <span class="s">"$JFROG_USER"</span> \
+  <span class="b">--password</span> <span class="s">"$JFROG_TOKEN"</span>
+
+<span class="o">helm upgrade</span> <span class="b">--install</span> <span class="b">--atomic</span> \
+  my-app jfrog-helm/my-app \
+  <span class="b">--version</span> <span class="s">$CHART_VERSION</span> \
+  <span class="b">-f</span> environments/prod/values.yaml</pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 OCI Registry (Helm 3.8+)</h3>
+      <pre style="background:#0d1117;border-radius:6px;padding:10px;font-size:12px;margin-top:8px"><span class="c"># JFrog hỗ trợ OCI format</span>
+<span class="o">helm push</span> my-app-0.1.0.tgz \
+  oci://<span class="s">&lt;server&gt;</span>/artifactory/<span class="s">&lt;repo&gt;</span>
+
+<span class="c"># Cài đặt từ OCI</span>
+<span class="o">helm install</span> my-release \
+  oci://<span class="s">&lt;server&gt;</span>/artifactory/<span class="s">&lt;repo&gt;</span>/my-app \
+  <span class="b">--version</span> 0.1.0</pre>
+    </div>
+    <div class="card">
+      <h3>🔗 Nguồn tham khảo</h3>
+      <div style="font-size:13px;color:var(--text2);line-height:2">
+        <div>📖 <a href="https://helm.sh/docs/" style="color:var(--blue-light)">helm.sh/docs</a> — Official Helm docs</div>
+        <div>📖 <a href="https://docs.jfrog.com/artifactory/docs/kubernetes-helm-chart-repositories" style="color:var(--blue-light)">JFrog Helm Repository</a></div>
+        <div>📖 <a href="https://argo-cd.readthedocs.io" style="color:var(--blue-light)">ArgoCD Documentation</a></div>
+        <div>📖 <a href="https://external-secrets.io" style="color:var(--blue-light)">External Secrets Operator</a></div>
+        <div>📖 <a href="https://github.com/jkroepke/helm-secrets" style="color:var(--blue-light)">helm-secrets plugin</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Reference -->
+  <h3 id="jfrog-quickref" style="margin:2rem 0 1rem;font-size:1.1rem">⚡ Quick Reference — Lệnh Helm thường dùng</h3>
+  <table style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <thead>
+      <tr>
+        <th>Lệnh</th>
+        <th>Mô tả</th>
+        <th>Flag quan trọng</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm create &lt;name&gt;</code></td>
+        <td>Tạo chart mới</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm lint ./chart</code></td>
+        <td>Kiểm tra cú pháp</td>
+        <td><code>--strict</code></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm template release ./chart</code></td>
+        <td>Render manifests (không deploy)</td>
+        <td><code>-f vals.yaml</code></td>
+      </tr>
+      <tr class="hl">
+        <td><code style="color:var(--green)">helm install release ./chart</code></td>
+        <td>Cài đặt lần đầu</td>
+        <td><code>--namespace --create-namespace</code></td>
+      </tr>
+      <tr class="hl">
+        <td><code style="color:var(--green)">helm upgrade --install release</code></td>
+        <td>Cài/nâng cấp idempotent</td>
+        <td><code>--atomic --timeout 5m</code></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm list -A</code></td>
+        <td>Liệt kê tất cả releases</td>
+        <td><code>-n namespace</code></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm history release</code></td>
+        <td>Lịch sử release</td>
+        <td><code>--max 10</code></td>
+      </tr>
+      <tr class="hl">
+        <td><code style="color:var(--amber)">helm rollback release 2</code></td>
+        <td>Rollback về revision 2</td>
+        <td><code>--wait</code></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm dependency update</code></td>
+        <td>Tải dependencies</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--red)">helm uninstall release</code></td>
+        <td>Xóa release</td>
+        <td><code>--keep-history</code></td>
+      </tr>
+      <tr>
+        <td><code style="color:var(--blue-light)">helm package ./chart</code></td>
+        <td>Đóng gói thành .tgz</td>
+        <td><code>--sign</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end .container -->
+</div><!-- end .page-body -->
+
+<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px;border-top:1px solid var(--border)">
+  ⛵ Helm Chart Learning Guide · Helm 3 · Kubernetes · ArgoCD · 2024–2025
+</div>
+
+<a href="#" class="back-top" title="Về đầu trang">↑</a>
+
+<script>
+const navLinks = document.querySelectorAll('.nav a');
+const tocLinks = document.querySelectorAll('.sidebar .toc-link');
+const sections = document.querySelectorAll('.section');
+
+function setActive(id) {
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  tocLinks.forEach(a => {
+    const href = a.getAttribute('href');
+    a.classList.toggle('active', href === '#' + id);
+  });
+}
+
+const allAnchors = Array.from(document.querySelectorAll('[id]')).filter(el =>
+  tocLinks.length && Array.from(tocLinks).some(l => l.getAttribute('href') === '#' + el.id)
+);
+
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) setActive(e.target.id);
+  });
+}, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+
+allAnchors.forEach(el => obs.observe(el));
+sections.forEach(el => obs.observe(el));
+
+tocLinks.forEach(link => {
+  link.addEventListener('click', e => {
+    const href = link.getAttribute('href');
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => setActive(href.slice(1)), 400);
+    }
+  });
+});
+</script>
+
+</body>
+</html>

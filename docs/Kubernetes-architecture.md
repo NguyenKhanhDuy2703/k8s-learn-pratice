@@ -16,7 +16,7 @@ Một cluster gồm:
 
 ---
 
-## I. Control Plane (Mặt phẳng điều khiển)
+## I. Control Plane
 
 Gồm 5 thành phần chính:
 
@@ -28,7 +28,7 @@ Gồm 5 thành phần chính:
 
 ### 1. kube-apiserver
 
-Là **trung tâm** của cluster, expose Kubernetes API. Mọi giao tiếp (kubectl, các component khác) đều đi qua API server thông qua **HTTP REST API qua TLS**.
+Là **trung tâm** của cluster, expose Kubernetes API. Mọi giao tiếp (kubectl, các component khác) đều đi qua API server thông qua **HTTP , REST , API qua TLS**.
 
 ![Kubernetes API server Diagram](../assets/02-k8s-architecture-api-1.gif)
 
@@ -89,6 +89,98 @@ Các thông tin quan trọng khác:
 - Có thể tạo **custom scheduler** chạy song song với scheduler mặc định.
 - Có **pluggable scheduling framework** để thêm plugin tùy chỉnh.
 - Hỗ trợ **Dynamic Resource Allocation (DRA)** (stable từ v1.34) cho phần cứng đặc biệt (GPU, FPGA...), phục vụ AI/ML workload.
+
+#### Luồng tạo Pod qua kube-scheduler (từ request đến khi Pod chạy)
+
+**Bước 1 — Pod Create Request**
+
+- **Từ:** External Systems (kubectl / CI/CD / k8s SDK)
+- **Đến:** API Server (Control Plane)
+- **API:** HTTPS · REST API
+- **Mô tả:** Người dùng chạy `kubectl apply -f pod.yaml` hoặc CI/CD gọi Kubernetes REST API. Request được gửi lên API server dưới dạng YAML/JSON. API server thực hiện Authentication → Authorization/RBAC → Validation/Admission Controllers trước khi chấp nhận tài nguyên.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** mTLS hoặc Bearer Token (ServiceAccount / OIDC)
+  - 🔧 kubeconfig phải có cluster endpoint và credentials (certificate hoặc token). API server cần bật TLS.
+
+**Bước 2 — Update Pod State**
+
+- **Từ:** API Server
+- **Đến:** etcd (datastore)
+- **API:** gRPC · etcd client protocol
+- **Mô tả:** API server lưu trạng thái Pod vào etcd với `status=Pending`, `nodeName=''` (chưa có node). etcd là nguồn sự thật duy nhất của cluster.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** TLS certificate từ API server → etcd
+  - 🔧 API server là client duy nhất ghi vào etcd. etcd cần bật TLS và whitelist certificate của API server.
+
+**Bước 3 — Acknowledge the Request**
+
+- **Từ:** API Server
+- **Đến:** External Systems (kubectl / CI/CD)
+- **API:** HTTPS · REST Response (HTTP 201 Created)
+- **Mô tả:** API server trả response 201 với object Pod đã được tạo (bao gồm `resourceVersion`, `uid`, ...). Kubectl hiển thị `pod/my-pod created`. Lúc này Pod chỉ tồn tại trong etcd, chưa chạy trên node nào.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** cùng HTTPS connection từ bước 1
+  - 🔧 Không cần thêm gì; API server trả HTTP response qua connection ban đầu.
+
+**Bước 4 — Detect unassigned Pod & create Pod-Node Binding**
+
+- **Từ:** kube-scheduler
+- **Đến:** API Server (qua Watch mechanism)
+- **API:** HTTPS · Watch (long-polling HTTP/2 stream)
+- **Mô tả:** kube-scheduler liên tục watch API server để phát hiện pod mới có `nodeName=''`. Sau đó scheduler chạy thuật toán filter + score trên các node phù hợp, rồi tạo Binding object để ghép pod với node được chọn.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** ServiceAccount token (trong cluster) hoặc kubeconfig
+  - 🔧 kube-scheduler cần RBAC cho phép watch Pods và create Bindings.
+
+**Bước 6 — Watch for bound pods**
+
+- **Từ:** kubelet (Worker Node 01)
+- **Đến:** API Server
+- **API:** HTTPS · Watch stream (HTTP/2 long-lived connection)
+- **Mô tả:** kubelet duy trì watch stream đến API server, chỉ theo dõi những Pod có `nodeName = tên-node-của-nó`. Khi binding được ghi vào etcd, API server push event tới kubelet ngay lập tức.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** Node TLS certificate
+  - 🔧 kubelet cần certificate riêng và được API server tin tưởng; node phải join cluster trước. RBAC nên giới hạn quyền xem Pod thuộc node của mình.
+
+**Bước 7 — kubelet gets pod specs**
+
+- **Từ:** kubelet
+- **Đến:** API Server
+- **API:** HTTPS · REST GET
+- **Mô tả:** Sau khi nhận event từ watch, kubelet gọi API server lấy đầy đủ PodSpec, gồm image, env, volume mounts, resource limits, liveness/readiness probes. kubelet cũng resolve Secret và ConfigMap được tham chiếu trong Pod.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** Node TLS certificate
+  - 🔧 Giống bước 6, kubelet dùng certificate của node để GET toàn bộ PodSpec.
+
+**Bước 8 — Start container(s) in the pod**
+
+- **Từ:** kubelet
+- **Đến:** Container Runtime (containerd / CRI-O)
+- **API:** gRPC · CRI (Container Runtime Interface)
+- **Mô tả:** kubelet giao tiếp với container runtime qua CRI gRPC socket. Các bước gồm pull image, tạo sandbox (pause container), tạo và start container. kubelet cũng mount secret/volume vào filesystem.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** Unix domain socket — không qua mạng, không cần auth riêng
+  - 🔧 Container runtime phải cài trên node, implement CRI, và có quyền pull image từ registry.
+
+**Bước 9 — Bind pod to node (status update)**
+
+- **Từ:** kubelet
+- **Đến:** API Server
+- **API:** HTTPS · REST PATCH/PUT
+- **Mô tả:** Sau khi container khởi động thành công, kubelet cập nhật status của Pod lên API server: `status.phase=Running`, `podIP`, `containerStatuses`. Đây là quá trình báo cáo trạng thái định kỳ.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** Node TLS certificate
+  - 🔧 Giống bước 6–7, kubelet dùng certificate của node.
+
+**Bước 10 — Save final state**
+
+- **Từ:** API Server
+- **Đến:** etcd
+- **API:** gRPC · etcd client protocol
+- **Mô tả:** API server nhận status update từ kubelet và ghi vào etcd: Pod chuyển sang Running với thông tin container ID, IP, timestamps. Bất kỳ ai watch API server (Deployment, HPA, monitoring tools…) đều nhận được event này.
+- **Cần gì để giao tiếp:**
+  - 📡 **Auth:** TLS certificate từ API server → etcd
+  - 🔧 Giống bước 2 và 5, API server là client duy nhất của etcd.
 
 ### 4. Kube Controller Manager
 

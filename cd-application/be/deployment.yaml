@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Rollout
+metadata:
+  name: backend-web
+spec:
+  replica : 2
+  selector:
+    matchLabels:
+      app: backend-web
+  template:
+    metadata:
+      labels:
+        app: backend-web
+    spec:
+      containers:
+      - name: nginx-backend
+        image: nguyenkhanhduy/backeend-web-nguyenkhanhduy:latest
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+    
+    livenessProbe:
+          httpGet: http
+          path : ping
+          port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+    readinessProbe:
+          httpGet: http
+          path : /health
+          port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+    
+    strategy:
+    canary :
+        steps:
+          - setWeight: 50
+          - pause: {duration: 5m}
+          - setWeight: 100
