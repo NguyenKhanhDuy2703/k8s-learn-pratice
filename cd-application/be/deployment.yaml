@@ -18,7 +18,7 @@ spec:
       serviceAccountName: k8s-visualizer-sa
       containers:
         - name: be
-          image: nguyenkhanhduy/k8s-visualizer-be:bbf78a4ab12699e906d96690a05eef3a55d97c41
+          image: nguyenkhanhduy/k8s-visualizer-be:464df5e425f2365ba173eacb5083b9f2043f4241
           ports:
             - containerPort: 3001
           env:
