@@ -2,22 +2,21 @@
  * App.jsx
  *
  * Layout:
- *   ┌─ StatusBar ──────────────────────────────────────┐
- *   ├─ NsTabBar: [All][default][kube-system]…[Terminal]┤
- *   └─ Content area ───────────────────────────────────┘
+ *   ┌─ StatusBar ──────────────────────────────────────────┐
+ *   ├─ NsTabBar: [All][default][kube-system]…[Terminal]    ┤
+ *   └─ Content area (horizontal tree diagram / terminal)   ┘
  *
- * Mỗi namespace tab có diagram riêng (chỉ pods/services của ns đó).
- * Tab "All" hiển thị overview tất cả namespace.
- * Tab "Terminal" → kubectl terminal.
+ * Tab "All"        → full cluster horizontal tree (tất cả namespaces)
+ * Tab "<namespace>" → horizontal tree chỉ namespace đó
+ * Tab "Terminal"   → kubectl terminal
  */
 
 import { useState, useMemo } from 'react';
-import { useClusterData }       from './hooks/useClusterData';
-import { buildGraphForNamespace } from './utils/buildGraph';
+import { useClusterData }                           from './hooks/useClusterData';
+import { buildGraphForNamespace, buildOverviewGraph } from './utils/buildGraph';
 import StatusBar      from './components/StatusBar';
 import NsTabBar       from './components/NsTabBar';
 import ClusterDiagram from './components/ClusterDiagram';
-import OverviewPage   from './components/OverviewPage';
 import Terminal       from './components/Terminal';
 
 export default function App() {
@@ -32,15 +31,20 @@ export default function App() {
     ])].sort()
   ), [pods, services]);
 
-  // Nếu activeTab không còn tồn tại (namespace bị xoá) -> về All
-  const safeTab = (activeTab === '__all__' || activeTab === '__terminal__' || namespaces.includes(activeTab))
-    ? activeTab
-    : '__all__';
+  // Nếu activeTab không còn tồn tại -> về All
+  const safeTab = (
+    activeTab === '__all__' ||
+    activeTab === '__terminal__' ||
+    namespaces.includes(activeTab)
+  ) ? activeTab : '__all__';
 
-  // Build graph chỉ khi đang ở tab namespace cụ thể
+  // Build graph cho cả All lẫn namespace cụ thể
   const { nodes: graphNodes, edges: graphEdges } = useMemo(() => {
-    if (loading || error || safeTab === '__all__' || safeTab === '__terminal__') {
+    if (loading || error || safeTab === '__terminal__') {
       return { nodes: [], edges: [] };
+    }
+    if (safeTab === '__all__') {
+      return buildOverviewGraph(k8sNodes, pods, services);
     }
     return buildGraphForNamespace(safeTab, k8sNodes, pods, services);
   }, [safeTab, k8sNodes, pods, services, loading, error]);
@@ -64,23 +68,14 @@ export default function App() {
         onChange={setActiveTab}
       />
 
-      {/* ── Content ─────────────────────────────────────────────────────── */}
+      {/* ── Content ──────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
 
         {loading && <LoadingScreen />}
         {!loading && error && <ErrorScreen error={error} />}
 
-        {/* Overview — tất cả namespace dạng card */}
-        {!loading && !error && safeTab === '__all__' && (
-          <OverviewPage
-            pods={pods}
-            services={services}
-            onSelectNamespace={setActiveTab}
-          />
-        )}
-
-        {/* Diagram — 1 namespace cụ thể */}
-        {!loading && !error && safeTab !== '__all__' && safeTab !== '__terminal__' && (
+        {/* Horizontal tree diagram — All or single namespace */}
+        {!loading && !error && safeTab !== '__terminal__' && (
           <ClusterDiagram
             key={safeTab}
             nodes={graphNodes}

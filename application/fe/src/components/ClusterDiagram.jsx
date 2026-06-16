@@ -1,8 +1,11 @@
 /**
- * ClusterDiagram.jsx
+ * ClusterDiagram.jsx — ArgoCD-style Left-Right layout (Dagre-powered)
  *
- * React Flow canvas — dùng chung cho tab namespace lẫn tab "All".
- * Nhận nodes/edges đã được build sẵn từ bên ngoài.
+ * Node hierarchy:
+ *   ServiceCard  →(smoothstep edge)→  PodCard  (inside WorkerGroup)
+ *
+ * WorkerGroup is a visual container (no handles).
+ * Edges always render above all nodes via zIndex: 9999 + elevateEdgesOnSelect.
  */
 
 import { useState, useMemo } from 'react';
@@ -15,29 +18,29 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import NodeGroupNode   from './nodes/NodeGroupNode';
-import PodNode         from './nodes/PodNode';
-import ServiceNode     from './nodes/ServiceNode';
-import NamespaceGroup  from './nodes/NamespaceGroup';
-import PodSidebar      from './PodSidebar';
+import NsGroup     from './nodes/NsGroup';
+import WorkerGroup from './nodes/WorkerGroup';
+import ServiceCard from './nodes/ServiceCard';
+import PodCard     from './nodes/PodCard';
+import PodSidebar  from './PodSidebar';
 
 const NODE_TYPES = {
-  namespaceGroup: NamespaceGroup,
-  nodeGroup:      NodeGroupNode,
-  podNode:        PodNode,
-  serviceNode:    ServiceNode,
+  nsGroup:     NsGroup,
+  workerGroup: WorkerGroup,
+  serviceCard: ServiceCard,
+  podCard:     PodCard,
 };
 
 export default function ClusterDiagram({ nodes: rawNodes, edges }) {
   const [selectedPod, setSelectedPod] = useState(null);
 
-  // Inject onClick vào podNode data
   const nodes = useMemo(
-    () => rawNodes.map(n =>
-      n.type === 'podNode'
-        ? { ...n, data: { ...n.data, onClick: setSelectedPod } }
-        : n
-    ),
+    () =>
+      rawNodes.map(n =>
+        n.type === 'podCard'
+          ? { ...n, data: { ...n.data, onClick: setSelectedPod } }
+          : n
+      ),
     [rawNodes]
   );
 
@@ -52,22 +55,29 @@ export default function ClusterDiagram({ nodes: rawNodes, edges }) {
           fitViewOptions={{ padding: 0.1 }}
           connectOnClick={false}
           nodesConnectable={false}
+          edgesUpdatable={false}
+          nodesDraggable={true}
+          elevateEdgesOnSelect={true}
           proOptions={{ hideAttribution: true }}
-          defaultEdgeOptions={{ type: 'smoothstep' }}
+          defaultEdgeOptions={{ type: 'smoothstep', zIndex: 9999 }}
           style={{ background: '#060b14', width: '100%', height: '100%' }}
         >
-          <Background color="#0d1525" gap={28} size={1} />
+          <Background color="#0d1525" gap={32} size={1} />
           <Controls
-            style={{ background: '#0f172a', borderColor: '#1e293b', color: '#64748b' }}
+            style={{
+              background: '#0f172a',
+              borderColor: '#1e293b',
+              color: '#64748b',
+            }}
           />
           <MiniMap
             style={{ background: '#060b14', borderColor: '#1e293b' }}
             maskColor="rgba(6,11,20,0.75)"
             nodeColor={n => {
-              if (n.type === 'namespaceGroup') return 'transparent';
-              if (n.type === 'nodeGroup')      return '#1e293b';
-              if (n.type === 'podNode')        return '#16a34a';
-              if (n.type === 'serviceNode')    return '#3b82f6';
+              if (n.type === 'nsGroup')     return 'transparent';
+              if (n.type === 'workerGroup') return '#0f172a';
+              if (n.type === 'podCard')     return '#16a34a';
+              if (n.type === 'serviceCard') return '#3b82f6';
               return '#334155';
             }}
           />

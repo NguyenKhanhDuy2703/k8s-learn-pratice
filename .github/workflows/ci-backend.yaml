@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "application/be/**"
+      - "!application/be/**/*.yaml"
+      - "!application/be/**/*.yml"
 
 jobs:
   call-docker-build:
