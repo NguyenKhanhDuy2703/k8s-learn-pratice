@@ -15,30 +15,29 @@ on:
       DOCKER_USERNAME:
         required: true
       GH_PAT:
-        required: true
+        required: false   # optional — fallback về GITHUB_TOKEN nếu không có
 
 jobs:
   update-manifest:
     runs-on: ubuntu-latest
+    # Cấp quyền write cho GITHUB_TOKEN ở job level
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }}
+          # Dùng GH_PAT nếu có, không thì dùng GITHUB_TOKEN (đã có write permission)
+          token: ${{ secrets.GH_PAT || github.token }}
 
       - name: Update Image Tag in Deployment
         run: |
-          # Tìm và thay thế tag của image bằng mã hash commit hiện tại
           sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ github.sha }}|g" ${{ inputs.manifest_file_path }}
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          
           git add ${{ inputs.manifest_file_path }}
-          
-          # Nếu không có thay đổi (file đã chứa tag này), git sẽ bỏ qua để tránh lỗi
           git commit -m "chore(cd): update ${{ inputs.image_name }} image tag to ${{ github.sha }}" || echo "No changes to commit"
-          
           git push
