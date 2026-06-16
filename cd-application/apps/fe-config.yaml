@@ -1,23 +1,22 @@
-apapiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: be-application
-  namespace: argocd     
+  name: fe-application           # đã sửa: trước đây bị nhầm thành be-application
+  namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source: 
+  source:
     repoURL: 'https://github.com/NguyenKhanhDuy2703/k8s-learn-pratice.git'
     targetRevision: main
-    path: cd/cd-application/fe
+    path: cd-application/fe
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: argocd
+    namespace: fullstack-namespace
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  
