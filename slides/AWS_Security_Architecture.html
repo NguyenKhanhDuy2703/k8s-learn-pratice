@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Security Architecture — Pháo đài phòng thủ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #0a0e14;
+    --bg-panel: #0f1520;
+    --bg-panel-2: #131a26;
+    --line: rgba(255,255,255,0.08);
+    --line-bright: rgba(255,255,255,0.16);
+    --text: #e8ecf1;
+    --text-dim: #8b94a3;
+    --text-faint: #5a6270;
+
+    /* Layer accent colors - mỗi tầng 1 màu nhận diện */
+    --c-perimeter: #ff6b4a;   /* cam đỏ - vòng ngoài, internet facing */
+    --c-network:   #ffb84a;   /* vàng cam - network */
+    --c-identity:  #4ade80;   /* xanh lá - identity */
+    --c-compute:   #38bdf8;   /* xanh dương - compute/container */
+    --c-data:      #a78bfa;   /* tím - data */
+    --c-watch:     #f472b6;   /* hồng - logging/detection */
+    --c-gov:       #94a3b8;   /* xám - governance/multi-account */
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  html{scroll-behavior:smooth;}
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  ::selection{ background: var(--c-network); color: #0a0e14; }
+
+  /* ===== Scroll progress ring nav ===== */
+  .sidenav{
+    position: fixed;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .sidenav a{
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--line-bright);
+    display: block;
+    position: relative;
+    transition: all .25s;
+  }
+  .sidenav a.active{
+    background: var(--dot-color, #fff);
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+  }
+  .sidenav a span{
+    position: absolute;
+    right: 22px; top: 50%;
+    transform: translateY(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .2s;
+    pointer-events: none;
+  }
+  .sidenav a:hover span{ opacity: 1; }
+  @media (max-width: 900px){ .sidenav{ display:none; } }
+
+  /* ===== HERO ===== */
+  .hero{
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 8vw 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-rings{
+    position: absolute;
+    right: -10%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 700px; height: 700px;
+    pointer-events: none;
+    opacity: 0.9;
+  }
+  .hero-rings .ring{
+    fill: none;
+    stroke-width: 1;
+    animation: spin-slow 60s linear infinite;
+    transform-origin: 350px 350px;
+  }
+  .hero-rings .ring:nth-child(2){ animation-direction: reverse; animation-duration: 80s; }
+  .hero-rings .ring:nth-child(3){ animation-duration: 100s; }
+  @keyframes spin-slow{ to{ transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .hero-rings .ring{ animation: none; } }
+
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: var(--c-network);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before{
+    content: '';
+    width: 24px; height: 1px;
+    background: var(--c-network);
+  }
+
+  h1.hero-title{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(40px, 7vw, 84px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    max-width: 920px;
+    margin-bottom: 28px;
+  }
+  h1.hero-title .accent{ color: var(--c-perimeter); }
+
+  .hero-sub{
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 620px;
+    margin-bottom: 44px;
+  }
+
+  .hero-stats{
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .hero-stat .num{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 34px;
+    color: var(--text);
+  }
+  .hero-stat .lbl{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+
+  .scroll-cue{
+    position: absolute;
+    bottom: 40px; left: 8vw;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .scroll-cue::after{
+    content: '';
+    width: 1px; height: 28px;
+    background: linear-gradient(to bottom, var(--text-faint), transparent);
+    animation: pulse-down 2s ease-in-out infinite;
+  }
+  @keyframes pulse-down{ 0%,100%{ opacity: .3; } 50%{ opacity: 1; } }
+
+  /* ===== SECTION shared ===== */
+  section{
+    padding: 120px 8vw;
+    position: relative;
+    border-top: 1px solid var(--line);
+  }
+  .section-head{
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .section-tag{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+  }
+  .section-title{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 44px);
+    letter-spacing: -0.01em;
+  }
+  .section-desc{
+    color: var(--text-dim);
+    max-width: 680px;
+    font-size: 16px;
+    margin-bottom: 56px;
+  }
+
+  /* ===== FORTRESS DIAGRAM (main visual concept) ===== */
+  .fortress-wrap{
+    display: flex;
+    gap: 60px;
+    align-items: flex-start;
+  }
+  @media (max-width: 1000px){ .fortress-wrap{ flex-direction: column; } }
+
+  .fortress{
+    position: relative;
+    width: 460px;
+    height: 460px;
+    flex-shrink: 0;
+    margin: 0 auto;
+  }
+  .fortress svg{ width: 100%; height: 100%; }
+  .fortress-ring{
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .fortress-ring:hover{ opacity: 0.75; }
+  .fortress-ring.dimmed{ opacity: 0.18; }
+  .fortress-label{
+    font-family: 'IBM Plex Mono', monospace;
+    fill: var(--text);
+    font-size: 10px;
+    pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .fortress-core-label{
+    font-family: 'Space Grotesk', sans-serif;
+    fill: var(--text);
+    font-weight: 600;
+    font-size: 15px;
+    text-anchor: middle;
+  }
+  .fortress-core-sub{
+    font-family: 'IBM Plex Mono', monospace;
+    fill: var(--text-faint);
+    font-size: 9px;
+    text-anchor: middle;
+    text-transform: uppercase;
+  }
+
+  .layer-list{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .layer-row{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .layer-row:hover, .layer-row.active{
+    background: var(--bg-panel-2);
+    border-color: var(--line-bright);
+  }
+  .layer-dot{
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px transparent;
+    transition: box-shadow .2s;
+  }
+  .layer-row.active .layer-dot{ box-shadow: 0 0 0 4px var(--dot-glow); }
+  .layer-row-name{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    min-width: 168px;
+  }
+  .layer-row-desc{
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  /* ===== Layer Detail Cards (grid of services) ===== */
+  .layer-block{
+    margin-bottom: 8px;
+    padding: 28px 0 60px;
+    border-bottom: 1px solid var(--line);
+  }
+  .layer-block:last-child{ border-bottom: none; }
+
+  .layer-block-head{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .layer-num{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .layer-pill{
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .layer-name{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 26px;
+  }
+  .layer-protects{
+    font-size: 14px;
+    color: var(--text-dim);
+    margin: 6px 0 28px;
+    max-width: 640px;
+  }
+  .layer-protects b{ color: var(--text); font-weight: 500; }
+
+  .svc-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .svc-card{
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    transition: border-color .15s, transform .15s;
+  }
+  .svc-card:hover{
+    border-color: var(--card-accent, var(--line-bright));
+    transform: translateY(-2px);
+  }
+  .svc-name{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .svc-name .chip{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .svc-desc{
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* ===== Flow diagram (request path) ===== */
+  .flow{
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: 8px 0 24px;
+  }
+  .flow-step{
+    flex-shrink: 0;
+    width: 150px;
+    text-align: center;
+    position: relative;
+    padding: 0 6px;
+  }
+  .flow-icon{
+    width: 56px; height: 56px;
+    margin: 0 auto 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--icon-color);
+    background: color-mix(in srgb, var(--icon-color) 10%, transparent);
+  }
+  .flow-icon svg{ width: 26px; height: 26px; stroke: var(--icon-color); fill: none; stroke-width: 1.6; }
+  .flow-name{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; margin-bottom:4px;}
+  .flow-desc{ font-size:11.5px; color:var(--text-faint); line-height:1.4; }
+  .flow-arrow{
+    flex-shrink: 0;
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    padding-top: 18px;
+  }
+
+  /* ===== Pipeline (DevSecOps) ===== */
+  .pipeline{
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 900px){ .pipeline{ grid-template-columns: repeat(2,1fr); } }
+  .pipe-stage{
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--stage-color);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .pipe-stage-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    margin-bottom:10px;
+    color: var(--stage-color);
+  }
+  .pipe-stage ul{ list-style:none; display:flex; flex-direction:column; gap:6px; }
+  .pipe-stage li{ font-size:12.5px; color:var(--text-dim); padding-left:14px; position:relative;}
+  .pipe-stage li::before{ content:'→'; position:absolute; left:0; color:var(--text-faint); font-size:11px;}
+
+  /* ===== Maturity / takeaway band ===== */
+  .takeaway-band{
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 36px;
+    margin-top: 8px;
+  }
+  .takeaway-band h4{
+    font-family:'Space Grotesk',sans-serif;
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .takeaway-band ol{
+    list-style: none;
+    counter-reset: tk;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+    gap: 14px;
+  }
+  .takeaway-band li{
+    counter-increment: tk;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    padding-left: 30px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .takeaway-band li::before{
+    content: counter(tk);
+    position: absolute;
+    left: 0; top: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent, var(--c-network));
+    color: #0a0e14;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== Multi-account org chart ===== */
+  .org-chart{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .org-node{
+    background: var(--bg-panel);
+    border: 1px solid var(--line-bright);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .org-row{ display:flex; gap:20px; margin-top: 36px; position: relative; flex-wrap: wrap; justify-content:center; }
+  .org-row::before{
+    content:'';
+    position:absolute; top:-18px; left:50%;
+    width:1px; height:18px;
+    background: var(--line-bright);
+  }
+  .org-ou{
+    border: 1px dashed var(--line-bright);
+    border-radius: 12px;
+    padding: 18px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 200px;
+  }
+  .org-ou-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-faint);
+    margin-bottom: 2px;
+  }
+  .org-acct{
+    background: var(--bg-panel-2);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ===== IR Timeline ===== */
+  .ir-line{
+    display: flex;
+    position: relative;
+    margin-top: 20px;
+  }
+  .ir-line::before{
+    content:'';
+    position: absolute;
+    top: 22px; left: 22px; right: 22px;
+    height: 2px;
+    background: var(--line-bright);
+    z-index: 0;
+  }
+  .ir-step{
+    flex: 1;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .ir-dot{
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border: 2px solid var(--ir-color);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: var(--ir-color);
+  }
+  .ir-title{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; margin-bottom:6px;}
+  .ir-desc{ font-size:11.5px; color:var(--text-faint); max-width:150px; margin:0 auto; line-height:1.4;}
+
+  /* ===== Footer ===== */
+  footer{
+    padding: 60px 8vw 80px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  footer .ftitle{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px;}
+  footer .fsub{ font-size:13px; color:var(--text-faint); margin-top:4px;}
+  .back-top{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    border: 1px solid var(--line-bright);
+    border-radius: 20px;
+    padding: 10px 20px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .back-top:hover{ color: var(--text); border-color: var(--text-dim); }
+
+  @media (max-width: 700px){
+    section{ padding: 80px 6vw; }
+    .hero{ padding: 60px 6vw 40px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidenav" id="sidenav"></nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero" style="border-top:none;">
+  <svg class="hero-rings" viewBox="0 0 700 700">
+    <circle class="ring" cx="350" cy="350" r="320" stroke="#ff6b4a" stroke-dasharray="2 14"/>
+    <circle class="ring" cx="350" cy="350" r="240" stroke="#4ade80" stroke-dasharray="1 10"/>
+    <circle class="ring" cx="350" cy="350" r="160" stroke="#a78bfa" stroke-dasharray="3 8"/>
+  </svg>
+  <div class="eyebrow">AWS Security Architecture · Field Guide</div>
+  <h1 class="hero-title">Mỗi lớp một <span class="accent">tuyến phòng thủ.</span><br>Mỗi service một nhiệm vụ.</h1>
+  <p class="hero-sub">Tài liệu này hệ thống hóa toàn bộ dịch vụ bảo mật AWS theo mô hình <b>Defense in Depth</b> — từ vòng ngoài (Internet) đi vào lõi (Data) — để bạn biết chính xác từng service đang chặn cái gì, ở đâu.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">7</div><div class="lbl">Tầng phòng thủ</div></div>
+    <div class="hero-stat"><div class="num">35+</div><div class="lbl">AWS service</div></div>
+    <div class="hero-stat"><div class="num">50+</div><div class="lbl">Security & compliance service trên AWS</div></div>
+  </div>
+  <div class="scroll-cue">CUỘN ĐỂ KHÁM PHÁ TỪNG TẦNG</div>
+</section>
+
+<!-- ============ FORTRESS OVERVIEW ============ -->
+<section id="overview">
+  <div class="section-head" style="color:#fff;">
+    <span class="section-tag" style="color:var(--c-network)">00</span>
+    <h2 class="section-title">Pháo đài AWS — nhìn từ trên xuống</h2>
+  </div>
+  <p class="section-desc">Hãy tưởng tượng hạ tầng AWS như một pháo đài nhiều vòng tường. Kẻ tấn công từ Internet phải xuyên qua từng vòng để chạm được dữ liệu ở lõi. Bấm vào từng vòng hoặc từng dòng bên phải để xem service nào trấn giữ ở đó.</p>
+
+  <div class="fortress-wrap">
+    <div class="fortress">
+      <svg viewBox="0 0 460 460">
+        <!-- rings from outside to inside, radius descending -->
+        <circle class="fortress-ring" data-layer="watch" cx="230" cy="230" r="215" fill="none" stroke="#f472b6" stroke-width="26" stroke-opacity="0.12"/>
+        <circle class="fortress-ring" data-layer="perimeter" cx="230" cy="230" r="190" fill="none" stroke="#ff6b4a" stroke-width="22" stroke-opacity="0.16"/>
+        <circle class="fortress-ring" data-layer="network" cx="230" cy="230" r="160" fill="none" stroke="#ffb84a" stroke-width="22" stroke-opacity="0.18"/>
+        <circle class="fortress-ring" data-layer="identity" cx="230" cy="230" r="130" fill="none" stroke="#4ade80" stroke-width="22" stroke-opacity="0.2"/>
+        <circle class="fortress-ring" data-layer="compute" cx="230" cy="230" r="100" fill="none" stroke="#38bdf8" stroke-width="22" stroke-opacity="0.22"/>
+        <circle class="fortress-ring" data-layer="data" cx="230" cy="230" r="70" fill="none" stroke="#a78bfa" stroke-width="22" stroke-opacity="0.28"/>
+
+        <!-- core -->
+        <circle cx="230" cy="230" r="46" fill="#131a26" stroke="#a78bfa" stroke-width="1.5"/>
+        <text class="fortress-core-label" x="230" y="226">DATA</text>
+        <text class="fortress-core-sub" x="230" y="241">your crown jewels</text>
+
+        <!-- ring labels along top -->
+        <text class="fortress-label" x="230" y="22" text-anchor="middle" fill="#f472b6">WATCH</text>
+        <text class="fortress-label" x="230" y="48" text-anchor="middle" fill="#ff6b4a">PERIMETER</text>
+        <text class="fortress-label" x="230" y="78" text-anchor="middle" fill="#ffb84a">NETWORK</text>
+        <text class="fortress-label" x="230" y="108" text-anchor="middle" fill="#4ade80">IDENTITY</text>
+        <text class="fortress-label" x="230" y="138" text-anchor="middle" fill="#38bdf8">COMPUTE</text>
+      </svg>
+    </div>
+
+    <div class="layer-list" id="layerList">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 1: PERIMETER ============ -->
+<section id="perimeter" style="--accent:#ff6b4a;">
+  <div class="section-head" style="color:#ff6b4a;">
+    <span class="section-tag">01 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Perimeter — Chặn ở cửa ngõ Internet</h2>
+  </div>
+  <p class="section-desc">Đây là tuyến đầu, nơi traffic từ Internet chạm vào hệ thống lần đầu tiên. Mục tiêu: lọc bỏ tấn công DDoS, SQL injection, XSS <b>trước khi</b> chúng chạm tới application.</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-icon" style="--icon-color:#8b94a3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18 14 14 0 010-18"/></svg></div>
+      <div class="flow-name">Internet</div>
+      <div class="flow-desc">Người dùng / kẻ tấn công</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon" style="--icon-color:#ff6b4a"><svg viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-5z"/></svg></div>
+      <div class="flow-name">Shield</div>
+      <div class="flow-desc">Chặn DDoS tự động</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon" style="--icon-color:#ff6b4a"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18 14 14 0 010-18"/></svg></div>
+      <div class="flow-name">CloudFront</div>
+      <div class="flow-desc">CDN, edge caching</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon" style="--icon-color:#ff6b4a"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div>
+      <div class="flow-name">WAF</div>
+      <div class="flow-desc">Lọc Layer 7, OWASP Top 10</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon" style="--icon-color:#ffb84a"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="4" rx="1"/><rect x="3" y="14" width="18" height="4" rx="1"/></svg></div>
+      <div class="flow-name">ALB</div>
+      <div class="flow-desc">Load balancer → app</div>
+    </div>
+  </div>
+
+  <div class="layer-protects" style="margin-top:36px;">
+    Lớp này bảo vệ: <b>tính khả dụng của hệ thống</b> (chống DDoS) và <b>tầng ứng dụng web</b> (chống injection, XSS) — trước khi request chạm vào VPC của bạn.
+  </div>
+
+  <div class="svc-grid">
+    <div class="svc-card" style="--card-accent:#ff6b4a;">
+      <div class="svc-name">AWS Shield <span class="chip" style="background:rgba(255,107,74,.15);color:#ff6b4a;">DDoS</span></div>
+      <div class="svc-desc">Standard: miễn phí, tự động cho mọi tài khoản AWS. Advanced: $3,000/tháng, có team DRT 24/7 hỗ trợ trực tiếp khi bị tấn công lớn.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ff6b4a;">
+      <div class="svc-name">AWS WAF <span class="chip" style="background:rgba(255,107,74,.15);color:#ff6b4a;">L7</span></div>
+      <div class="svc-desc">Soi từng request HTTP: chặn SQL injection trong query string, chặn script độc trong input (XSS), rate-limit để chống credential stuffing.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ff6b4a;">
+      <div class="svc-name">Amazon CloudFront</div>
+      <div class="svc-desc">CDN phân phối nội dung qua edge location — giảm tải gốc, đồng thời là điểm tích hợp với WAF và Shield ngay tại biên.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ffb84a;">
+      <div class="svc-name">AWS Network Firewall</div>
+      <div class="svc-desc">Tường lửa stateful L3/L4/L7: lọc domain, áp luật IPS tương thích Suricata. Triển khai tập trung trong VPC dịch vụ chia sẻ.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 2: NETWORK ============ -->
+<section id="network" style="--accent:#ffb84a;">
+  <div class="section-head" style="color:#ffb84a;">
+    <span class="section-tag">02 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Network — Cách ly bằng VPC</h2>
+  </div>
+  <p class="section-desc">Bên trong VPC, traffic được kiểm soát bằng 2 lớp tường lửa khác cấp độ. Nguyên tắc bất biến: <b>database không bao giờ nằm ở public subnet.</b></p>
+
+  <div class="svc-grid">
+    <div class="svc-card" style="--card-accent:#ffb84a;">
+      <div class="svc-name">Security Group <span class="chip" style="background:rgba(255,184,74,.15);color:#ffb84a;">Stateful</span></div>
+      <div class="svc-desc">Tường lửa ở cấp instance (ENI). Chỉ có luật Allow. Tự động cho phép traffic trả về — đây là tường lửa chính bạn dùng hằng ngày.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ffb84a;">
+      <div class="svc-name">Network ACL <span class="chip" style="background:rgba(255,184,74,.15);color:#ffb84a;">Stateless</span></div>
+      <div class="svc-desc">Tường lửa ở cấp subnet. Có cả Allow và Deny, xét theo thứ tự số. Không tự nhớ traffic trả về — phải khai báo cả hai chiều.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ffb84a;">
+      <div class="svc-name">VPC Endpoints</div>
+      <div class="svc-desc">Kết nối riêng tới S3, DynamoDB và 100+ service AWS khác mà không cần ra Internet Gateway — traffic ở lại trong mạng AWS.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#ffb84a;">
+      <div class="svc-name">AWS PrivateLink</div>
+      <div class="svc-desc">Expose service riêng tư giữa các VPC/account khác nhau mà không cần VPC peering hay mở route phức tạp.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px; padding:24px; background:var(--bg-panel); border:1px solid var(--line); border-radius:12px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); margin-bottom:14px; text-transform:uppercase;">Sơ đồ subnet điển hình</div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:220px; border:1px dashed #4ade80; border-radius:10px; padding:16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#4ade80; margin-bottom:10px;">PUBLIC SUBNET — 10.0.1.0/24</div>
+        <div style="font-size:13px; color:var(--text-dim);">NAT Gateway · Internet Gateway</div>
+      </div>
+      <div style="flex:1; min-width:220px; border:1px dashed #a78bfa; border-radius:10px; padding:16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#a78bfa; margin-bottom:10px;">PRIVATE SUBNET — 10.0.2.0/24</div>
+        <div style="font-size:13px; color:var(--text-dim);">EC2 / RDS · App servers — không có route ra internet trực tiếp</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 3: IDENTITY ============ -->
+<section id="identity" style="--accent:#4ade80;">
+  <div class="section-head" style="color:#4ade80;">
+    <span class="section-tag">03 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Identity — Ai được làm gì</h2>
+  </div>
+  <p class="section-desc">Lớp quan trọng nhất vì 39% breach liên quan tới credential bị đánh cắp. Nguyên tắc cốt lõi: <b>Least Privilege</b> — chỉ cấp đúng quyền cần, không hơn.</p>
+
+  <div class="svc-grid">
+    <div class="svc-card" style="--card-accent:#4ade80;">
+      <div class="svc-name">IAM Roles <span class="chip" style="background:rgba(74,222,128,.15);color:#4ade80;">Ưu tiên</span></div>
+      <div class="svc-desc">Credential tạm thời, được assume bởi service/app/người dùng liên kết. Ưu tiên hơn IAM User có access key dài hạn.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#4ade80;">
+      <div class="svc-name">MFA</div>
+      <div class="svc-desc">Bắt buộc trên root account ngay sau khi tạo. Có thể enforce toàn org bằng SCP — không ai được bỏ qua.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#4ade80;">
+      <div class="svc-name">IAM Identity Center</div>
+      <div class="svc-desc">SSO tập trung cho mọi account trong tổ chức. Tích hợp Active Directory, Okta, Azure AD. Cấp credential tạm thời, không có static key.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#4ade80;">
+      <div class="svc-name">IAM Access Analyzer</div>
+      <div class="svc-desc">Phát hiện quyền không dùng tới, giúp tinh chỉnh policy về sát với nhu cầu thực tế.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); margin-bottom:16px; text-transform:uppercase;">3 cơ chế giới hạn quyền nâng cao</div>
+    <div class="svc-grid">
+      <div class="svc-card" style="--card-accent:#4ade80;">
+        <div class="svc-name">Permission Boundaries</div>
+        <div class="svc-desc">Đặt mức trần quyền tối đa mà một entity (user/role) có thể có, dù policy gắn vào có rộng hơn.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#4ade80;">
+        <div class="svc-name">Resource-Based Policies</div>
+        <div class="svc-desc">Gắn trực tiếp lên resource như S3 bucket, KMS key, SQS queue — quyết định ai được phép chạm vào resource đó.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#4ade80;">
+        <div class="svc-name">Session Policies</div>
+        <div class="svc-desc">Truyền vào lúc assume role qua STS — giới hạn thêm cho riêng session đó, không ảnh hưởng role gốc.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 4: COMPUTE / CONTAINER ============ -->
+<section id="compute" style="--accent:#38bdf8;">
+  <div class="section-head" style="color:#38bdf8;">
+    <span class="section-tag">04 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Compute & Container — Nơi code thực sự chạy</h2>
+  </div>
+  <p class="section-desc">EC2, Lambda, và đặc biệt là EKS (Kubernetes) — mỗi lớp trong stack container cần được khóa riêng.</p>
+
+  <div class="svc-grid">
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">Control Plane</div>
+      <div class="svc-desc">AWS quản lý, tự động patch. Kết hợp Kubernetes RBAC với IAM. Mã hóa secret trong etcd bằng envelope encryption.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">Worker Node</div>
+      <div class="svc-desc">Dùng EKS Managed Node Groups. Bắt buộc IMDSv2 để chặn SSRF. Không SSH — chỉ dùng SSM Session Manager.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">IRSA (Pod Identity)</div>
+      <div class="svc-desc">Gán IAM Role riêng cho từng Service Account — pod chỉ có đúng quyền cần, không dùng chung quyền của node.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">Network Policies</div>
+      <div class="svc-desc">Calico hoặc VPC CNI network policy: default-deny mọi ingress/egress, chỉ mở traffic pod-to-pod cần thiết.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">Falco / GuardDuty for EKS</div>
+      <div class="svc-desc">Phát hiện hành vi container bất thường tại runtime — privilege escalation, API call lạ.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#38bdf8;">
+      <div class="svc-name">OPA / Kyverno</div>
+      <div class="svc-desc">Policy as code: chặn container chạy privileged ngay tại thời điểm admission, trước khi pod được tạo.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 5: DATA ============ -->
+<section id="data" style="--accent:#a78bfa;">
+  <div class="section-head" style="color:#a78bfa;">
+    <span class="section-tag">05 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Data — Lõi cần bảo vệ nhất</h2>
+  </div>
+  <p class="section-desc">Dữ liệu được mã hóa ở <b>3 trạng thái</b>: đang lưu trữ, đang truyền, và đang được xử lý. Đây là lớp trong cùng — nếu mọi lớp ngoài đều bị xuyên qua, mã hóa vẫn là lưới bảo vệ cuối cùng.</p>
+
+  <div class="flow" style="justify-content:center;">
+    <div class="flow-step" style="width:170px;">
+      <div class="flow-icon" style="--icon-color:#a78bfa"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+      <div class="flow-name">At rest</div>
+      <div class="flow-desc">KMS · S3 SSE · EBS · RDS encryption</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step" style="width:170px;">
+      <div class="flow-icon" style="--icon-color:#a78bfa"><svg viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg></div>
+      <div class="flow-name">In transit</div>
+      <div class="flow-desc">TLS 1.2/1.3 · ACM · VPN / Direct Connect</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step" style="width:170px;">
+      <div class="flow-icon" style="--icon-color:#a78bfa"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></div>
+      <div class="flow-name">In use</div>
+      <div class="flow-desc">Nitro Enclaves · Tokenization</div>
+    </div>
+  </div>
+
+  <div style="margin-top:48px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); margin-bottom:16px; text-transform:uppercase;">Amazon S3 — 6 lớp kiểm soát</div>
+    <div class="svc-grid">
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">Block Public Access</div>
+        <div class="svc-desc">Thiết lập ở cấp account, chặn mọi ACL public — bật vĩnh viễn, không có lý do hợp lệ để tắt.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">Bucket Policies</div>
+        <div class="svc-desc">JSON resource-based policy kiểm soát ai truy cập bucket, trong điều kiện nào (IP, MFA, thời gian...).</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">SSE-S3 / SSE-KMS</div>
+        <div class="svc-desc">Mã hóa server-side dùng key do S3 quản lý hoặc customer-managed key trong KMS để kiểm soát chặt hơn.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">S3 Access Logs</div>
+        <div class="svc-desc">Ghi lại mọi request tới bucket — phục vụ audit và điều tra sự cố sau này.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">Object Lock (WORM)</div>
+        <div class="svc-desc">Chặn xóa object trong thời gian retention — lớp phòng thủ quan trọng chống ransomware.</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">Amazon Macie</div>
+        <div class="svc-desc">Dùng ML để tự động phát hiện PII và dữ liệu nhạy cảm nằm rải rác trong các bucket S3.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); margin-bottom:16px; text-transform:uppercase;">Quản lý khóa — KMS & Secrets Manager</div>
+    <div class="svc-grid">
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">AWS KMS</div>
+        <div class="svc-desc">HSM đạt chuẩn FIPS 140-2. 3 loại key: AWS Managed (free, tự xoay), Customer Managed (toàn quyền kiểm soát), AWS Owned (chia sẻ, không thấy được).</div>
+      </div>
+      <div class="svc-card" style="--card-accent:#a78bfa;">
+        <div class="svc-name">AWS Secrets Manager</div>
+        <div class="svc-desc">Lưu credential database, API key, token. Tự động xoay bằng Lambda — loại bỏ hoàn toàn mật khẩu fix cứng trong code.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 6: WATCH (Logging/Detection) ============ -->
+<section id="watch" style="--accent:#f472b6;">
+  <div class="section-head" style="color:#f472b6;">
+    <span class="section-tag">06 / 07</span>
+    <h2 class="section-title" style="color:#fff;">Watch — Nhìn thấy mọi thứ xảy ra</h2>
+  </div>
+  <p class="section-desc">Lớp này bao trùm toàn bộ pháo đài — không chặn tấn công, nhưng đảm bảo bạn <b>biết</b> khi có chuyện xảy ra và <b>chứng minh được</b> điều đó với auditor.</p>
+
+  <div class="svc-grid">
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">CloudTrail</div>
+      <div class="svc-desc">Ghi mọi API call — ai làm gì, lúc nào, từ đâu. Câu hỏi kinh điển "ai đã xóa bucket này?" luôn được trả lời từ đây.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">CloudWatch</div>
+      <div class="svc-desc">Thu thập metric, log, event theo thời gian thực. Alarm khi CPU spike bất thường hay tỷ lệ lỗi API tăng vọt.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">AWS Config</div>
+      <div class="svc-desc">Theo dõi thay đổi cấu hình theo thời gian. 140+ rule có sẵn, ví dụ "S3 bucket không được public".</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">GuardDuty <span class="chip" style="background:rgba(244,114,182,.15);color:#f472b6;">ML</span></div>
+      <div class="svc-desc">Phân tích CloudTrail, VPC Flow Log, DNS log bằng machine learning để phát hiện credential bị đánh cắp, đào coin trái phép, port scan.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">Security Hub</div>
+      <div class="svc-desc">Single pane of glass — tổng hợp finding từ GuardDuty, Inspector, Macie và đối chiếu với CIS, PCI DSS, NIST 800-53.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">Amazon Detective</div>
+      <div class="svc-desc">Điều tra dạng đồ thị — trả lời câu hỏi "việc này xảy ra như thế nào?", giảm đáng kể thời gian điều tra (MTTR).</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">Amazon Inspector</div>
+      <div class="svc-desc">Quét lỗ hổng liên tục cho EC2 (qua SSM agent), Lambda (package dependency), và image trong ECR.</div>
+    </div>
+    <div class="svc-card" style="--card-accent:#f472b6;">
+      <div class="svc-name">Audit Manager</div>
+      <div class="svc-desc">Tự động thu thập bằng chứng đối chiếu CIS, NIST, PCI DSS, SOC2, ISO 27001, HIPAA — giảm 90% thời gian chuẩn bị audit.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYER 7: DEVSECOPS PIPELINE ============ -->
+<section id="devsecops" style="--accent:#2dd4bf;">
+  <div class="section-head" style="color:#2dd4bf;">
+    <span class="section-tag">07 / 07</span>
+    <h2 class="section-title" style="color:#fff;">DevSecOps — Bảo mật trước khi lên Production</h2>
+  </div>
+  <p class="section-desc"><b>Shift Left:</b> sửa lỗi ở bước code rẻ hơn rất nhiều so với sửa ở production. Mỗi giai đoạn pipeline có một cổng kiểm tra riêng.</p>
+
+  <div class="pipeline">
+    <div class="pipe-stage" style="--stage-color:#38bdf8;">
+      <div class="pipe-stage-title">Code</div>
+      <ul>
+        <li>SAST — quét lỗ hổng mã nguồn tĩnh (SQLi, …)</li>
+        <li>Secret scanning — phát hiện mật khẩu fix cứng</li>
+        <li>Peer review</li>
+      </ul>
+    </div>
+    <div class="pipe-stage" style="--stage-color:#4ade80;">
+      <div class="pipe-stage-title">Build</div>
+      <ul>
+        <li>Dependency scan — đánh giá an toàn thư viện mã nguồn mở</li>
+        <li>License check — kiểm tra license được phép dùng</li>
+        <li>SBOM generation — bản kê toàn bộ thành phần phần mềm</li>
+      </ul>
+    </div>
+    <div class="pipe-stage" style="--stage-color:#ffb84a;">
+      <div class="pipe-stage-title">Test</div>
+      <ul>
+        <li>DAST — kiểm thử bảo mật bằng tấn công giả</li>
+        <li>Pen testing — tìm lỗ hổng luồng nghiệp vụ</li>
+        <li>IaC scan — kiểm tra mã hạ tầng (Terraform, CFN)</li>
+      </ul>
+    </div>
+    <div class="pipe-stage" style="--stage-color:#a78bfa;">
+      <div class="pipe-stage-title">Package</div>
+      <ul>
+        <li>Container scan — tìm lỗ hổng trong image</li>
+        <li>Image sign — đóng dấu, đảm bảo image không bị sửa</li>
+        <li>Registry push — đẩy lên ECR (immutable tag)</li>
+      </ul>
+    </div>
+    <div class="pipe-stage" style="--stage-color:#ff6b4a;">
+      <div class="pipe-stage-title">Deploy</div>
+      <ul>
+        <li>Policy gate — chặn nếu vi phạm chính sách</li>
+        <li>Config check — kiểm tra port/cấu hình mở nhầm</li>
+        <li>Drift detect — phát hiện lệch cấu hình giữa môi trường</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway-band" style="margin-top:36px; --accent:#2dd4bf;">
+    <h4>Công cụ theo từng giai đoạn</h4>
+    <div class="svc-grid">
+      <div class="svc-card" style="--card-accent:#2dd4bf;"><div class="svc-name">Checkov / tfsec / cfn-nag</div><div class="svc-desc">Quét Terraform, CloudFormation, Kubernetes manifest tìm lỗi cấu hình bảo mật.</div></div>
+      <div class="svc-card" style="--card-accent:#2dd4bf;"><div class="svc-name">Gitleaks / truffleHog</div><div class="svc-desc">Quét lịch sử git tìm secret đã commit nhầm trong quá khứ.</div></div>
+      <div class="svc-card" style="--card-accent:#2dd4bf;"><div class="svc-name">Cosign / Sigstore</div><div class="svc-desc">Ký số và xác minh container image trước khi deploy lên Kubernetes.</div></div>
+      <div class="svc-card" style="--card-accent:#2dd4bf;"><div class="svc-name">OWASP ZAP / Burp Suite</div><div class="svc-desc">Kiểm thử bảo mật ứng dụng web đang chạy thực tế (DAST).</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MULTI-ACCOUNT GOVERNANCE ============ -->
+<section id="governance" style="--accent:#94a3b8;">
+  <div class="section-head" style="color:#94a3b8;">
+    <span class="section-tag">+</span>
+    <h2 class="section-title" style="color:#fff;">Quản trị đa tài khoản (bao trùm mọi tầng)</h2>
+  </div>
+  <p class="section-desc">AWS Organizations + Service Control Policies (SCP) thiết lập <b>giới hạn quyền tối đa</b> áp dụng xuyên suốt mọi tầng kể trên — không account nào, kể cả root, được vượt qua.</p>
+
+  <div class="org-chart">
+    <div class="org-node" style="border-color:#94a3b8; color:#94a3b8;">AWS Organizations — Management Account</div>
+    <div class="org-row">
+      <div class="org-ou">
+        <div class="org-ou-label">Foundational OU</div>
+        <div class="org-acct">Security Account</div>
+        <div class="org-acct">Log Archive Account</div>
+        <div class="org-acct">Network Account</div>
+      </div>
+      <div class="org-ou">
+        <div class="org-ou-label">Workload OU</div>
+        <div class="org-acct">Production</div>
+        <div class="org-acct">Staging</div>
+        <div class="org-acct">Development</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="takeaway-band" style="margin-top:48px; --accent:#94a3b8;">
+    <h4>SCP — Service Control Policy chỉ giới hạn, không bao giờ cấp quyền</h4>
+    <ol>
+      <li>Chặn rời khỏi AWS Organization</li>
+      <li>Bắt buộc MFA để xóa S3 bucket</li>
+      <li>Chặn dùng service ngoài region được duyệt</li>
+      <li>Chặn tắt CloudTrail hoặc GuardDuty</li>
+      <li>Bắt buộc IMDSv2 trên mọi EC2</li>
+      <li>Chặn tạo IAM user có console access</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ INCIDENT RESPONSE ============ -->
+<section id="ir" style="--accent:#ef4444;">
+  <div class="section-head" style="color:#ef4444;">
+    <span class="section-tag">+</span>
+    <h2 class="section-title" style="color:#fff;">Khi mọi tầng đều thất bại — Incident Response</h2>
+  </div>
+  <p class="section-desc">Quy trình 5 bước xử lý khi sự cố thực sự xảy ra, bất kể đã qua bao nhiêu lớp phòng thủ.</p>
+
+  <div class="ir-line">
+    <div class="ir-step">
+      <div class="ir-dot" style="--ir-color:#ffb84a;">1</div>
+      <div class="ir-title">Detection</div>
+      <div class="ir-desc">GuardDuty / Security Hub / CloudWatch alarm kích hoạt</div>
+    </div>
+    <div class="ir-step">
+      <div class="ir-dot" style="--ir-color:#ff6b4a;">2</div>
+      <div class="ir-title">Containment</div>
+      <div class="ir-desc">Cách ly resource, gỡ IAM policy, thu hồi access key</div>
+    </div>
+    <div class="ir-step">
+      <div class="ir-dot" style="--ir-color:#f472b6;">3</div>
+      <div class="ir-title">Investigation</div>
+      <div class="ir-desc">Dùng CloudTrail, Flow Logs, Detective lần dấu vết</div>
+    </div>
+    <div class="ir-step">
+      <div class="ir-dot" style="--ir-color:#4ade80;">4</div>
+      <div class="ir-title">Recovery</div>
+      <div class="ir-desc">Khôi phục từ backup sạch, xoay toàn bộ secret</div>
+    </div>
+    <div class="ir-step">
+      <div class="ir-dot" style="--ir-color:#38bdf8;">5</div>
+      <div class="ir-title">Lessons Learned</div>
+      <div class="ir-desc">Post-mortem, cập nhật runbook và rule phát hiện</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <div class="ftitle">AWS Security Architecture & Best Practices</div>
+    <div class="fsub">Hệ thống hóa từ tài liệu training — TechX Solution Architect</div>
+  </div>
+  <a href="#overview" class="back-top">↑ Về đầu trang</a>
+</footer>
+
+<script>
+  const layers = [
+    {id:'perimeter', name:'Perimeter', color:'#ff6b4a', desc:'Shield · WAF · CloudFront chặn ở cửa Internet'},
+    {id:'network',   name:'Network',   color:'#ffb84a', desc:'VPC, Security Group, NACL cách ly subnet'},
+    {id:'identity',  name:'Identity',  color:'#4ade80', desc:'IAM, MFA, Identity Center — ai được làm gì'},
+    {id:'compute',   name:'Compute',   color:'#38bdf8', desc:'EC2, EKS — nơi code chạy, IRSA, network policy'},
+    {id:'data',      name:'Data',      color:'#a78bfa', desc:'KMS, Secrets Manager, S3 — lõi cần giữ kín'},
+    {id:'watch',     name:'Watch',     color:'#f472b6', desc:'CloudTrail, GuardDuty, Security Hub — thấy mọi thứ'},
+  ];
+
+  // Build layer list (right side of fortress)
+  const layerListEl = document.getElementById('layerList');
+  layers.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'layer-row';
+    row.dataset.layer = l.id;
+    row.style.setProperty('--dot-glow', l.color + '33');
+    row.innerHTML = `
+      <div class="layer-dot" style="background:${l.color}"></div>
+      <div class="layer-row-name">${l.name}</div>
+      <div class="layer-row-desc">${l.desc}</div>
+    `;
+    row.addEventListener('click', () => {
+      document.getElementById(l.id).scrollIntoView({behavior:'smooth'});
+    });
+    row.addEventListener('mouseenter', () => highlightRing(l.id));
+    row.addEventListener('mouseleave', () => highlightRing(null));
+    layerListEl.appendChild(row);
+  });
+
+  function highlightRing(id){
+    document.querySelectorAll('.fortress-ring').forEach(r => {
+      if(id === null){ r.classList.remove('dimmed'); }
+      else { r.classList.toggle('dimmed', r.dataset.layer !== id); }
+    });
+    document.querySelectorAll('.layer-row').forEach(r => {
+      r.classList.toggle('active', r.dataset.layer === id);
+    });
+  }
+
+  document.querySelectorAll('.fortress-ring').forEach(ring => {
+    ring.addEventListener('mouseenter', () => highlightRing(ring.dataset.layer));
+    ring.addEventListener('mouseleave', () => highlightRing(null));
+    ring.addEventListener('click', () => {
+      const target = document.getElementById(ring.dataset.layer);
+      if(target) target.scrollIntoView({behavior:'smooth'});
+    });
+  });
+
+  // Side nav dots
+  const navSections = [
+    {id:'overview', label:'Tổng quan'},
+    {id:'perimeter', label:'Perimeter'},
+    {id:'network', label:'Network'},
+    {id:'identity', label:'Identity'},
+    {id:'compute', label:'Compute'},
+    {id:'data', label:'Data'},
+    {id:'watch', label:'Watch'},
+    {id:'devsecops', label:'DevSecOps'},
+    {id:'governance', label:'Governance'},
+    {id:'ir', label:'Incident Response'},
+  ];
+  const sidenav = document.getElementById('sidenav');
+  navSections.forEach(s => {
+    const a = document.createElement('a');
+    a.href = '#' + s.id;
+    a.innerHTML = `<span>${s.label}</span>`;
+    sidenav.appendChild(a);
+  });
+
+  const navLinks = sidenav.querySelectorAll('a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const idx = navSections.findIndex(s => s.id === entry.target.id);
+        navLinks.forEach((l, i) => l.classList.toggle('active', i === idx));
+      }
+    });
+  }, {threshold: 0.4});
+  navSections.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(el) observer.observe(el);
+  });
+</script>
+
+</body>
+</html>

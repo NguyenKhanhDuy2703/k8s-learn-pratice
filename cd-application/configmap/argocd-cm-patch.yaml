@@ -1,3 +1,5 @@
+# đùng để tạo tài khoản cho User -> đăng nhập -> UI
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
