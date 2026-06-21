@@ -8,34 +8,7 @@ spec:
   selector:
     app: k8s-visualizer-be
   ports:
-    - port: 3001
+    - nameport : http-metrics
+      port: 3001
       targetPort: 3001
       protocol: TCP
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: k8s-visualizer-sa
-  namespace: visualizer
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: k8s-visualizer-reader
-rules:
-  - apiGroups: [""]
-    resources: ["nodes", "pods", "services", "namespaces"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: k8s-visualizer-reader-binding
-subjects:
-  - kind: ServiceAccount
-    name: k8s-visualizer-sa
-    namespace: visualizer
-roleRef:
-  kind: ClusterRole
-  name: k8s-visualizer-reader
-  apiGroup: rbac.authorization.k8s.io

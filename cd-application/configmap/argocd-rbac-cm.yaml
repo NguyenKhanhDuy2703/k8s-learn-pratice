@@ -16,13 +16,10 @@ data:
     p, role:developer, logs,         get,      visualizer/*, allow
 
     # Không cho developer xóa app, sửa/xóa project
-    p, role:developer, applications, delete,   visualizer/*, deny
-    p, role:developer, applications, override, visualizer/*, deny
+    p, role:developer, applications, delete,   visualizer/*,  deny
+    p, role:developer, applications, override, visualizer/*,  deny
     p, role:developer, projects,     update,    visualizer,   deny
     p, role:developer, projects,     delete,    visualizer,   deny
-
-    # Chặn riêng exec qua ArgoCD UI (mặc định không bị allow theo applications/*,
-    # nhưng khai báo deny rõ để chắc chắn, tránh nhầm lẫn khi đọc lại sau này)
     p, role:developer, exec,         create,    visualizer/*, deny
 
     # Gán user developer vào role developer

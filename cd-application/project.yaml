@@ -8,7 +8,11 @@ spec:
     - 'https://github.com/NguyenKhanhDuy2703/k8s-learn-pratice'
 
   destinations:
+    # namespace cho app thực tế
     - namespace: visualizer
+      server: https://kubernetes.default.svc
+    # namespace cho ArgoCD App-of-Apps (root-app deploy vào đây)
+    - namespace: argocd
       server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:

@@ -15,6 +15,7 @@ const nodesRouter = require('./routes/nodes');
 const podsRouter = require('./routes/pods');
 const servicesRouter = require('./routes/services');
 const execRouter = require('./routes/exec');
+const metricsRouter = require('./routes/metrics');
 const { watchPods } = require('./services/watchService');
 
 const app = express();
@@ -34,6 +35,10 @@ app.use('/api/exec', execRouter);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Prometheus metrics endpoint
+// Trả về metrics theo chuẩn Prometheus text exposition format (0.0.4)
+app.use('/metrics', metricsRouter);
 
 // --- Socket.io setup ---
 const io = new Server(server, {
