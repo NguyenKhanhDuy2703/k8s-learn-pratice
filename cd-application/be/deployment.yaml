@@ -20,6 +20,11 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: k8s-visualizer-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       imagePullSecrets:
         - name: dockerhub-credentials
       containers:
@@ -27,6 +32,13 @@ spec:
           image: nkd7059181/k8s-visualizer-be:464df5e425f2365ba173eacb5083b9f2043f4241
           ports:
             - containerPort: 3001
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           env:
             - name: PORT
               value: "3001"

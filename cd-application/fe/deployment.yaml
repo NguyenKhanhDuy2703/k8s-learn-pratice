@@ -15,6 +15,11 @@ spec:
       labels:
         app: k8s-visualizer-fe
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101        # nginx default non-root UID (nginx:alpine)
+        runAsGroup: 101
+        fsGroup: 101
       imagePullSecrets:
         - name: dockerhub-credentials
       containers:
@@ -22,6 +27,13 @@ spec:
           image: nkd7059181/k8s-visualizer-fe:latest
           ports:
             - containerPort: 80
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # nginx cần ghi tmp files
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               memory: "64Mi"

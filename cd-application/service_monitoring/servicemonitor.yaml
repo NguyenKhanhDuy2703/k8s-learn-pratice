@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: k8s-visualizer-be
+  namespace: visualizer
+  labels:
+    app: k8s-visualizer-be
+    release: prometheus          # label để Prometheus Operator discovery
+spec:
+  selector:
+    matchLabels:
+      app: k8s-visualizer-be
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
