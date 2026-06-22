@@ -29,7 +29,7 @@ spec:
         - name: dockerhub-credentials
       containers:
         - name: be
-          image: nkd7059181/k8s-visualizer-be:464df5e425f2365ba173eacb5083b9f2043f4241
+          image: nkd7059181/k8s-visualizer-be:f58584c17b8de16f1ec1aa0d8a7ffc1f6985c879
           ports:
             - containerPort: 3001
           securityContext:
